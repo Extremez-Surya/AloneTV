@@ -1,0 +1,70 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+// Video streaming sources with proxy support
+const STREAM_SOURCES: Record<string, (id: string, season?: number, episode?: number) => string> = {
+  // Primary sources
+  'vidsrc': (id, season, episode) =>
+    season ? `https://vidsrc.in/embed/tv/${id}/${season}/${episode}`
+           : `https://vidsrc.in/embed/movie/${id}`,
+
+  'vidplay': (id, season, episode) =>
+    season ? `https://vidplay.online/embed/${id}?season=${season}&episode=${episode}`
+           : `https://vidplay.online/embed/${id}`,
+
+  'moviesapi': (id) => `https://moviesapi.club/movie/${id}`,
+
+  'superembed': (id, season, episode) =>
+    season ? `https://superembed.net/?tmdb=${id}&tmdb_type=tv&season=${season}&episode=${episode}`
+           : `https://superembed.net/?tmdb=${id}&tmdb_type=movie`,
+};
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const tmdbId = searchParams.get('id');
+  const type = searchParams.get('type') || 'movie';
+  const source = searchParams.get('source') || 'vidsrc';
+  const season = searchParams.get('season');
+  const episode = searchParams.get('episode');
+
+  if (!tmdbId) {
+    return NextResponse.json({ error: 'Missing tmdbId' }, { status: 400 });
+  }
+
+  // Get the stream URL
+  const streamFn = STREAM_SOURCES[source];
+  if (!streamFn) {
+    return NextResponse.json({ error: 'Invalid source' }, { status: 400 });
+  }
+
+  const streamUrl = streamFn(tmdbId, season ? parseInt(season) : undefined, episode ? parseInt(episode) : undefined);
+
+  // Return the stream URL with proxy-friendly headers
+  return NextResponse.json({
+    url: streamUrl,
+    source,
+    type,
+    quality: '1080p'
+  });
+}
+
+// Also handle POST for getting multiple sources
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  const { tmdbId, type = 'movie', season, episode } = body;
+
+  if (!tmdbId) {
+    return NextResponse.json({ error: 'Missing tmdbId' }, { status: 400 });
+  }
+
+  // Return all available sources
+  const sources = Object.entries(STREAM_SOURCES).map(([name, fn]) => ({
+    name,
+    url: fn(tmdbId, season, episode),
+    quality: '1080p'
+  }));
+
+  return NextResponse.json({
+    sources,
+    primary: sources[0]?.url
+  });
+}

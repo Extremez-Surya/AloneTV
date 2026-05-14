@@ -1,26 +1,177 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* CineVibez Cinematic Dark Theme */
+  --bg-primary: #050505;
+  --bg-secondary: #0D0D0D;
+  --bg-card: #111111;
+  --accent-purple: #7C3AED;
+  --accent-teal: #0D9488;
+  --text-primary: #F9FAFB;
+  --text-muted: #6B7280;
+  --border: rgba(255, 255, 255, 0.08);
+
+  /* Spacing & Sizing */
+  --navbar-height: 72px;
+  --content-max-width: 1400px;
+
+  /* Effects */
+  --glass-blur: blur(20px);
+  --card-hover-scale: scale(1.05);
+  --transition-slow: 600ms ease;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-card: var(--bg-card);
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-teal: var(--accent-teal);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border);
+  --font-sans: var(--font-inter);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-purple) var(--bg-secondary);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--accent-purple);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-teal);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism Effect */
+.glass {
+  background: rgba(17, 17, 17, 0.7);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
+}
+
+/* Gradient Overlays */
+.gradient-overlay-bottom {
+  background: linear-gradient(to top, var(--bg-primary), transparent 50%);
+}
+
+.gradient-overlay-hero {
+  background: linear-gradient(to right, var(--bg-primary), transparent 60%),
+              linear-gradient(to top, var(--bg-primary), transparent 30%);
+}
+
+/* Card Hover Animation */
+.card-hover {
+  transition: transform var(--transition-slow);
+}
+
+.card-hover:hover {
+  transform: var(--card-hover-scale);
+}
+
+/* Pulse Animation for Live Badge */
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse-live {
+  animation: pulse-live 1.5s ease-in-out infinite;
+}
+
+/* Skeleton Loading */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+.skeleton {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  background: var(--bg-card);
+}
+
+/* Fade In Animation */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
+}
+
+/* Horizontal Scroll Styles */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Video.js Custom Theme */
+.video-js {
+  font-family: var(--font-inter);
+}
+
+.video-js .vjs-big-play-button {
+  background-color: var(--accent-purple);
+  border: none;
+  border-radius: 50%;
+  width: 80px;
+  height: 80px;
+  line-height: 80px;
+  font-size: 40px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.video-js .vjs-control-bar {
+  background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+}
+
+.video-js .vjs-play-progress {
+  background-color: var(--accent-purple);
+}
+
+/* Focus States */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent-purple);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: var(--accent-purple);
+  color: var(--text-primary);
 }

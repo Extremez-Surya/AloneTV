@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(Get-Content \"D:\\\\alonetv\\\\.env.local\")",
+      "Bash(Select-String \"TMDB\")"
+    ]
+  }
+}
