@@ -179,8 +179,8 @@ export async function GET(request: NextRequest) {
 
     if (!sources || !sources.sources.length) {
       // Fallback to direct embed sources if Consumet fails
-      // Try multiple embed providers
-      const fallbackSources = [
+      // Anime and movies use different embed patterns
+      const fallbackSources = !isAnime ? [
         {
           url: `https://www.2embed.cc/embed/${mediaId}`,
           quality: 'auto',
@@ -193,7 +193,7 @@ export async function GET(request: NextRequest) {
           isM3u8: false,
           name: 'VidSrc'
         }
-      ];
+      ] : [];
       
       return NextResponse.json({
         sources: fallbackSources,

@@ -244,6 +244,7 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
             onLoad={handleIframeLoad}
             onError={handleIframeError}
             title={`Video Player: ${title}`}
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-forms allow-modals"
             style={{ border: 'none' }}
           />
         )}
