@@ -62,10 +62,10 @@ export async function fetchVideoSources(
     
     if (data.sources && Array.isArray(data.sources)) {
       const sources = data.sources.map((source: any) => ({
-        name: source.provider || source.quality || 'Source',
+        name: source.name || source.provider || source.quality || 'Source',
         url: source.url,
         quality: source.quality || 'auto',
-        type: source.isM3u8 ? 'hls' : 'mp4',
+        type: source.isM3u8 ? 'hls' : 'iframe',
         isM3u8: source.isM3u8 || source.url?.includes('.m3u8')
       }));
 

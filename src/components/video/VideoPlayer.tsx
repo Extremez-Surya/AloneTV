@@ -59,6 +59,18 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
     }
   }, [isLoading, isIframe]);
 
+  // Force iframe loading to complete after timeout (onLoad might not fire reliably)
+  useEffect(() => {
+    if (isLoading && isIframe) {
+      const timeout = setTimeout(() => {
+        setIsLoading(false);
+        setLoadProgress(100);
+      }, 8000); // 8 second timeout for iframe embed
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [isLoading, isIframe]);
+
   // Handle video load for direct HLS streams
   const handleVideoLoadStart = useCallback(() => {
     setIsLoading(true);

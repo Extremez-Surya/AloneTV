@@ -179,16 +179,26 @@ export async function GET(request: NextRequest) {
 
     if (!sources || !sources.sources.length) {
       // Fallback to direct embed sources if Consumet fails
+      // Try multiple embed providers
+      const fallbackSources = [
+        {
+          url: `https://www.2embed.cc/embed/${mediaId}`,
+          quality: 'auto',
+          isM3u8: false,
+          name: '2Embed'
+        },
+        {
+          url: `https://vidsrc.me/embed/${type === 'movie' ? mediaId : `tv/${mediaId}`}`,
+          quality: 'auto',
+          isM3u8: false,
+          name: 'VidSrc'
+        }
+      ];
+      
       return NextResponse.json({
-        sources: [
-          {
-            url: `https://multiembed.mov/?video_id=${mediaId}&tmdb=1`,
-            quality: 'auto',
-            isM3u8: false,
-            provider: 'MultiEmbed (Fallback)'
-          }
-        ],
-        subtitles: []
+        sources: fallbackSources,
+        subtitles: [],
+        fallback: true
       });
     }
 
