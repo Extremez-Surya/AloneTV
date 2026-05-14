@@ -76,10 +76,15 @@ export default function WatchPageClient({
           sources = await getAllVideoSources('movie', videoId);
         }
 
+
         setVideoSources(sources);
 
         if (sources.length === 0) {
-          setSourceError('No video sources available. Please try again later.');
+          if (isAnime) {
+            setSourceError('Anime streaming is currently unavailable. We are working on improving anime support. Please try movies or TV shows instead.');
+          } else {
+            setSourceError('No video sources available. Please try again later.');
+          }
         }
       } catch (error) {
         console.error('Failed to load video sources:', error);
