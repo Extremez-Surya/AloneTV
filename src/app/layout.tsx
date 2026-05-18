@@ -49,15 +49,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-bg-primary text-text-primary">
         <Navbar />
         <main className="flex-1">{children}</main>
         <footer className="border-t border-white/5 py-8">
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
+          <div className="max-w-350 mx-auto px-4 sm:px-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-purple to-accent-teal flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-linear-to-br from-accent-purple to-accent-teal flex items-center justify-center">
                   <svg
                     className="w-5 h-5 text-white"
                     fill="none"

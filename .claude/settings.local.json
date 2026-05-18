@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm run *)",
       "Bash(Get-Content \"D:\\\\alonetv\\\\.env.local\")",
-      "Bash(Select-String \"TMDB\")"
+      "Bash(Select-String \"TMDB\")",
+      "Bash(curl -s \"http://localhost:3000/api/video?id=550&type=movie\")"
     ]
   }
 }

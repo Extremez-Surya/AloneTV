@@ -1,5 +1,6 @@
 // OMDB API Client
 const OMDB_BASE_URL = 'https://www.omdbapi.com/';
+const FETCH_TIMEOUT_MS = 8000;
 
 export interface OMDBMovie {
   Title: string;
@@ -31,9 +32,20 @@ export interface OMDBMovie {
 
 const apiKey = process.env.OMDB_API_KEY;
 
+async function fetchWithTimeout(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function getMovieByTitle(title: string): Promise<OMDBMovie | null> {
   try {
-    const res = await fetch(`${OMDB_BASE_URL}?t=${encodeURIComponent(title)}&apikey=${apiKey}`);
+    const res = await fetchWithTimeout(`${OMDB_BASE_URL}?t=${encodeURIComponent(title)}&apikey=${apiKey}`);
     const data = await res.json();
     if (data.Response === 'True') {
       return data;
@@ -47,7 +59,7 @@ export async function getMovieByTitle(title: string): Promise<OMDBMovie | null> 
 
 export async function getMovieByIMDB(imdbId: string): Promise<OMDBMovie | null> {
   try {
-    const res = await fetch(`${OMDB_BASE_URL}?i=${imdbId}&apikey=${apiKey}`);
+    const res = await fetchWithTimeout(`${OMDB_BASE_URL}?i=${imdbId}&apikey=${apiKey}`);
     const data = await res.json();
     if (data.Response === 'True') {
       return data;
@@ -61,7 +73,7 @@ export async function getMovieByIMDB(imdbId: string): Promise<OMDBMovie | null> 
 
 export async function searchMovies(query: string): Promise<OMDBMovie[]> {
   try {
-    const res = await fetch(`${OMDB_BASE_URL}?s=${encodeURIComponent(query)}&apikey=${apiKey}`);
+    const res = await fetchWithTimeout(`${OMDB_BASE_URL}?s=${encodeURIComponent(query)}&apikey=${apiKey}`);
     const data = await res.json();
     if (data.Response === 'True' && data.Search) {
       return data.Search;

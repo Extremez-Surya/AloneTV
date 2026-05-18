@@ -1,15 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useCallback as useCallbackHook } from 'react';
-
-interface VideoSource {
-  name: string;
-  url: string;
-  quality: string;
-  type: 'hls' | 'mp4' | 'iframe';
-  isM3u8?: boolean;
-}
+import type { VideoSource } from '@/lib/api/videoSources';
+import { 
+  getPreferredAudioLanguage, 
+  setPreferredAudioLanguage, 
+  detectSystemLanguage,
+  SUPPORTED_LANGUAGES,
+  type AudioLanguage 
+} from '@/lib/audioPreferences';
 
 interface VideoPlayerProps {
   sources: VideoSource[];
@@ -17,127 +16,127 @@ interface VideoPlayerProps {
 }
 
 /**
- * HLS-compatible video player using HTML5 video + Fetch
- * Supports both direct HLS (.m3u8) and iframe sources
+ * Video Player with iframe embeds and auto-switching
  */
 export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadProgress, setLoadProgress] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [autoSwitchCount, setAutoSwitchCount] = useState(0);
+  const [selectedLanguage, setSelectedLanguage] = useState<AudioLanguage>('English');
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>(['English']);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const sourceAttemptRef = useRef(0);
+  const autoSwitchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const currentSource = sources[currentIndex];
-  const isHLS = currentSource?.type === 'hls' || currentSource?.isM3u8;
-  const isIframe = currentSource?.type === 'iframe';
+  const currentSource = sources[currentIndex] || sources[0];
+
+  // Initialize language preference
+  useEffect(() => {
+    const preferred = getPreferredAudioLanguage();
+    setSelectedLanguage(preferred);
+  }, []);
+
+  // Update available languages when source changes
+  useEffect(() => {
+    if (currentSource?.languages) {
+      setAvailableLanguages(currentSource.languages);
+      // If current language not available in new source, try to find a compatible one
+      if (!currentSource.languages.includes(selectedLanguage)) {
+        const firstLang = (currentSource.languages[0] as AudioLanguage) || 'English';
+        setSelectedLanguage(firstLang);
+      }
+    }
+  }, [currentSource, selectedLanguage]);
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    setIsLoading(true);
+    setHasError(false);
+    setErrorMessage('');
+    setAutoSwitchCount(0);
+
+    if (autoSwitchTimerRef.current) {
+      clearTimeout(autoSwitchTimerRef.current);
+    }
+  }, [sources]);
 
   // Reset state when source changes
   useEffect(() => {
     setIsLoading(true);
-    setLoadProgress(0);
     setHasError(false);
     setErrorMessage('');
-    sourceAttemptRef.current = 0;
+    setAutoSwitchCount(0);
+
+    if (autoSwitchTimerRef.current) {
+      clearTimeout(autoSwitchTimerRef.current);
+    }
   }, [currentIndex]);
 
-  // Simulate loading progress for UX
+  // Force iframe loading to complete after timeout
   useEffect(() => {
-    if (isLoading && !isIframe) {
-      const interval = setInterval(() => {
-        setLoadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(interval);
-            return prev;
-          }
-          return prev + Math.random() * 20;
-        });
-      }, 300);
-      return () => clearInterval(interval);
-    }
-  }, [isLoading, isIframe]);
-
-  // Force iframe loading to complete after timeout (onLoad might not fire reliably)
-  useEffect(() => {
-    if (isLoading && isIframe) {
+    if (isLoading && currentSource) {
       const timeout = setTimeout(() => {
         setIsLoading(false);
-        setLoadProgress(100);
-      }, 8000); // 8 second timeout for iframe embed
-      
+      }, 12000);
+
       return () => clearTimeout(timeout);
     }
-  }, [isLoading, isIframe]);
+  }, [isLoading, currentSource]);
 
-  // Handle video load for direct HLS streams
-  const handleVideoLoadStart = useCallback(() => {
-    setIsLoading(true);
-  }, []);
-
-  const handleVideoCanPlay = useCallback(() => {
-    setIsLoading(false);
-    setLoadProgress(100);
-    setHasError(false);
-  }, []);
-
-  const handleVideoError = useCallback((e: Event) => {
-    const video = e.target as HTMLVideoElement;
-    const errorCode = video.error?.code;
-    
-    const errorMessages: Record<number, string> = {
-      1: 'Loading aborted',
-      2: 'Network error',
-      3: 'Decoding failed',
-      4: 'Format not supported'
-    };
-
-    setHasError(true);
-    setErrorMessage(errorMessages[errorCode || 0] || 'Unable to load stream');
-    setIsLoading(false);
-    setLoadProgress(0);
-
-    // Auto-switch to next source on error (max 3 attempts)
-    if (sourceAttemptRef.current < 2 && sources.length > 1) {
-      sourceAttemptRef.current++;
-      const timer = setTimeout(() => {
+  // Auto-switch to next source on error
+  useEffect(() => {
+    if (hasError && autoSwitchCount < 3 && sources.length > 1) {
+      autoSwitchTimerRef.current = setTimeout(() => {
         setCurrentIndex((prev) => (prev + 1) % sources.length);
-      }, 2000);
-      return () => clearTimeout(timer);
+        setAutoSwitchCount((prev) => prev + 1);
+      }, 3000);
     }
-  }, [sources.length]);
+
+    return () => {
+      if (autoSwitchTimerRef.current) {
+        clearTimeout(autoSwitchTimerRef.current);
+      }
+    };
+  }, [hasError, autoSwitchCount, sources.length]);
 
   const handleIframeLoad = useCallback(() => {
     setIsLoading(false);
-    setLoadProgress(100);
     setHasError(false);
+    setAutoSwitchCount(0);
   }, []);
 
   const handleIframeError = useCallback(() => {
     setHasError(true);
-    setErrorMessage('Failed to load embed');
+    setErrorMessage('Stream unavailable on this server');
     setIsLoading(false);
-
-    // Auto-switch to next source
-    if (sourceAttemptRef.current < 2 && sources.length > 1) {
-      sourceAttemptRef.current++;
-      const timer = setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % sources.length);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [sources.length]);
+  }, []);
 
   const handleSourceChange = (index: number) => {
+    if (autoSwitchTimerRef.current) {
+      clearTimeout(autoSwitchTimerRef.current);
+    }
     setCurrentIndex(index);
+    setAutoSwitchCount(0);
+  };
+
+  const handleLanguageChange = (language: AudioLanguage) => {
+    setSelectedLanguage(language);
+    setPreferredAudioLanguage(language);
   };
 
   const handleRetry = () => {
     setHasError(false);
     setErrorMessage('');
-    if (videoRef.current) {
-      videoRef.current.load();
+    setAutoSwitchCount(0);
+    if (iframeRef.current) {
+      iframeRef.current.src = currentSource?.url || '';
+    }
+  };
+
+  const handleOpenNewTab = () => {
+    if (currentSource?.url) {
+      window.open(currentSource.url, '_blank');
     }
   };
 
@@ -173,14 +172,13 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
         {isLoading && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/95 backdrop-blur-sm">
             <div className="w-16 h-16 border-4 border-accent-purple border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-white font-semibold mb-3">{currentSource?.name}</p>
-            <div className="w-48 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-accent-purple to-accent-teal transition-all duration-300"
-                style={{ width: `${Math.min(loadProgress, 100)}%` }}
-              />
-            </div>
-            <p className="text-gray-400 text-sm mt-3">{Math.round(loadProgress)}%</p>
+            <p className="text-white font-semibold mb-2">Loading {currentSource?.name}...</p>
+            <p className="text-gray-400 text-sm">{title}</p>
+            {autoSwitchCount > 0 && (
+              <p className="text-yellow-500 text-xs mt-2">
+                Switching to next source...
+              </p>
+            )}
           </div>
         )}
 
@@ -200,91 +198,152 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
                 d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <p className="text-white font-semibold mb-2">{errorMessage}</p>
-            {sources.length > 1 && sourceAttemptRef.current < 2 && (
-              <p className="text-gray-400 text-sm">Trying next server...</p>
-            )}
-            {sourceAttemptRef.current >= 2 && (
+            <p className="text-white font-semibold mb-2">{errorMessage || 'Unable to load stream'}</p>
+            <p className="text-gray-400 text-sm mb-4">{currentSource?.name}</p>
+            <div className="flex gap-3 flex-wrap justify-center">
               <button
                 onClick={handleRetry}
-                className="mt-4 px-4 py-2 bg-accent-purple hover:bg-accent-purple/90 text-white rounded-lg transition-colors"
+                className="px-4 py-2 bg-accent-purple hover:bg-accent-purple/90 text-white rounded-lg transition-colors"
               >
                 Retry
               </button>
-            )}
+              <button
+                onClick={handleOpenNewTab}
+                className="px-4 py-2 bg-accent-teal hover:bg-accent-teal/90 text-white rounded-lg transition-colors"
+              >
+                Open in New Tab
+              </button>
+              {sources.length > 1 && (
+                <button
+                  onClick={() => handleSourceChange((currentIndex + 1) % sources.length)}
+                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                >
+                  Next Source ({currentIndex + 1}/{sources.length})
+                </button>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Native Video Player (for HLS streams) */}
-        {isHLS && !isIframe && (
-          <video
-            ref={videoRef}
-            className="absolute inset-0 w-full h-full"
-            controls
-            autoPlay
-            crossOrigin="anonymous"
-            onLoadStart={handleVideoLoadStart}
-            onCanPlay={handleVideoCanPlay}
-            onError={handleVideoError}
-          >
-            <source src={currentSource.url} type="application/x-mpegURL" />
-            <p>Your browser does not support HTML5 video.</p>
-          </video>
-        )}
-
-        {/* Fallback Iframe Player */}
-        {isIframe && (
+        {/* Iframe Player */}
+        {currentSource && !hasError && (
           <iframe
+            key={`player-${currentIndex}`}
             ref={iframeRef}
-            key={`iframe-${currentIndex}-${Date.now()}`}
             src={currentSource.url}
             className="absolute inset-0 w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
             allowFullScreen
             onLoad={handleIframeLoad}
             onError={handleIframeError}
             title={`Video Player: ${title}`}
-            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-forms allow-modals"
-            style={{ border: 'none' }}
+                        style={{ border: 'none' }}
           />
         )}
       </div>
 
-      {/* Server/Source Selection */}
-      {sources.length > 1 && (
-        <div className="p-4 bg-bg-card rounded-xl border border-white/10">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <span className="text-gray-400 text-sm font-medium">Stream Source:</span>
-              <div className="flex gap-2 flex-wrap">
-                {sources.map((source, index) => (
-                  <button
-                    key={`${source.name}-${index}`}
-                    onClick={() => handleSourceChange(index)}
-                    disabled={hasError && index === currentIndex}
-                    className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
-                      currentIndex === index
-                        ? 'bg-accent-purple text-white shadow-lg shadow-accent-purple/50'
-                        : 'bg-white/10 text-gray-300 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed'
-                    }`}
-                  >
-                    {source.name}
-                    {source.quality !== 'auto' && (
-                      <span className="hidden sm:inline ml-2 text-xs opacity-75">
-                        ({source.quality})
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span>{currentIndex + 1} of {sources.length}</span>
+      {/* Source Selection */}
+      <div className="p-4 bg-bg-card rounded-xl border border-white/10 space-y-4">
+        {/* Stream Selection */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400 text-sm font-medium">Stream:</span>
+            <div className="flex gap-2 flex-wrap">
+              {sources.map((source, index) => (
+                <button
+                  key={`${source.name}-${index}`}
+                  onClick={() => handleSourceChange(index)}
+                  className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
+                    currentIndex === index
+                      ? 'bg-accent-purple text-white shadow-lg shadow-accent-purple/50'
+                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                  }`}
+                >
+                  {source.name}
+                  {source.quality !== 'auto' && (
+                    <span className="ml-1 text-xs opacity-75">({source.quality})</span>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
+          {sources.length > 1 && (
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <span>Source {currentIndex + 1} of {sources.length}</span>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Audio Language Selection */}
+        <div className="pt-3 border-t border-white/10 flex items-center gap-3 flex-wrap">
+          <span className="text-gray-400 text-sm font-medium">Audio:</span>
+          <select
+            value={selectedLanguage}
+            onChange={(e) => handleLanguageChange(e.target.value as AudioLanguage)}
+            className="px-3 py-1.5 rounded-lg bg-white/10 text-white text-xs sm:text-sm border border-white/20 hover:border-white/40 focus:border-accent-purple focus:outline-none transition-colors"
+          >
+            {availableLanguages.map((lang) => (
+              <option key={lang} value={lang} className="bg-gray-900">
+                {lang}
+              </option>
+            ))}
+          </select>
+          <span className="text-gray-500 text-xs">
+            {availableLanguages.length} available
+          </span>
+        </div>
+
+        {currentSource && (
+          <div className="pt-2 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.2em] text-gray-400">
+            {currentSource.recommended && (
+              <span className="rounded-full border border-accent-purple/40 bg-accent-purple/10 px-2 py-1 text-accent-purple">
+                Recommended
+              </span>
+            )}
+            {currentSource.fast && (
+              <span className="rounded-full border border-accent-teal/40 bg-accent-teal/10 px-2 py-1 text-accent-teal">
+                Fast
+              </span>
+            )}
+            {currentSource.resumable && (
+              <span className="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-gray-300">
+                Resumable
+              </span>
+            )}
+            {currentSource.ads && (
+              <span className="rounded-full border border-yellow-500/40 bg-yellow-500/10 px-2 py-1 text-yellow-300">
+                Ads
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Quick Actions */}
+        {currentSource && (
+          <div className="mt-3 pt-3 border-t border-white/10 flex gap-2">
+            <button
+              onClick={handleOpenNewTab}
+              className="px-3 py-1.5 bg-accent-teal/20 text-accent-teal rounded text-xs font-medium hover:bg-accent-teal/30 transition-colors"
+            >
+              Open in New Tab
+            </button>
+            <a
+              href={currentSource.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-white/5 text-gray-400 rounded text-xs font-medium hover:bg-white/10 transition-colors"
+            >
+              Open Link
+            </a>
+          </div>
+        )}
+      </div>
+
+      {/* Help Text */}
+      <div className="text-center text-gray-500 text-xs space-y-1">
+        <p>If video doesn't load in iframe, click "Open in New Tab"</p>
+        <p>Some sources may be blocked in your region</p>
+      </div>
     </div>
   );
 }

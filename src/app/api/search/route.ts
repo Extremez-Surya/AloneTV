@@ -38,6 +38,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ results: [], source: 'none' });
   } catch (error) {
     console.error('Search API error:', error);
-    return NextResponse.json({ results: [], error: 'Search failed' }, { status: 500 });
+    return NextResponse.json({ results: [], source: 'error' });
   }
 }

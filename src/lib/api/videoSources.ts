@@ -1,7 +1,6 @@
 /**
  * Video Source Management
- * Fetches direct .m3u8 HLS links via Consumet API
- * No iframe restrictions - clean, ad-free streaming
+ * Reliable iframe embed sources with auto-switching
  */
 
 export interface VideoSource {
@@ -9,21 +8,246 @@ export interface VideoSource {
   url: string;
   quality: string;
   type: 'hls' | 'mp4' | 'iframe';
-  isM3u8?: boolean;
+  recommended?: boolean;
+  fast?: boolean;
+  ads?: boolean;
+  resumable?: boolean;
+  languages?: string[]; // Audio languages: 'English', 'Hindi', 'Tamil', etc.
 }
 
-interface CacheEntry {
-  sources: VideoSource[];
-  timestamp: number;
+export type AudioLanguage = 
+  | 'English' 
+  | 'Hindi' 
+  | 'Tamil' 
+  | 'Telugu' 
+  | 'Kannada' 
+  | 'Malayalam' 
+  | 'Marathi' 
+  | 'Bengali' 
+  | 'Spanish' 
+  | 'French' 
+  | 'German' 
+  | 'Portuguese' 
+  | 'Italian' 
+  | 'Russian' 
+  | 'Japanese' 
+  | 'Korean' 
+  | 'Chinese' 
+  | 'Thai' 
+  | 'Vietnamese' 
+  | 'Indonesian';
+
+function createSource(
+  name: string,
+  url: string,
+  quality = 'auto',
+  flags: Omit<VideoSource, 'name' | 'url' | 'quality' | 'type'> = {},
+): VideoSource {
+  return {
+    name,
+    url,
+    quality,
+    type: 'iframe',
+    ...flags,
+  };
 }
 
-// Simple in-memory cache (5 minutes)
-const sourceCache = new Map<string, CacheEntry>();
-const CACHE_DURATION = 5 * 60 * 1000;
+/**
+ * Get supported languages for a provider
+ * Most providers support original + select dubs
+ */
+function getProviderLanguages(providerName: string): string[] {
+  const languageMap: Record<string, string[]> = {
+    'VidLink': ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam'],
+    'VidLink 2': ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada'],
+    'VidKing': ['English', 'Hindi', 'Spanish'],
+    '2Embed': ['English'],
+    'Vidsrc': ['English'],
+    'Movies7': ['English', 'Hindi'],
+    'VidPlay': ['English', 'Hindi', 'Tamil'],
+    'AutoEmbed': ['English', 'Spanish', 'Portuguese'],
+    'SuperEmbed': ['English'],
+    'MultiEmbed': ['English'],
+    'MoviesAPI': ['English', 'Hindi'],
+  };
+  return languageMap[providerName] || ['English'];
+}
+
+/**
+ * Get working video sources for movies
+ * Uses multi-provider embed sites with auto-switching
+ */
+export function getMovieSources(tmdbId: string): VideoSource[] {
+  return [
+    createSource(
+      'VidLink',
+      `https://vidlink.pro/movie/${tmdbId}?player=jw&primaryColor=006fee&secondaryColor=a2a2a2&iconColor=eefdec&autoplay=false`,
+      'auto',
+      { recommended: true, fast: true, ads: true, resumable: true, languages: ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam'] },
+    ),
+    createSource(
+      'VidLink 2',
+      `https://vidlink.pro/movie/${tmdbId}?primaryColor=006fee&autoplay=false`,
+      'auto',
+      { recommended: true, fast: true, ads: true, resumable: true, languages: ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada'] },
+    ),
+    createSource(
+      'VidKing',
+      `https://www.vidking.net/embed/movie/${tmdbId}?color=006fee&autoplay=false`,
+      'auto',
+      { recommended: true, fast: true, resumable: true, languages: ['English', 'Hindi', 'Spanish'] },
+    ),
+    createSource('2Embed', `https://www.2embed.cc/embed/${tmdbId}`, '1080p', {
+      recommended: true,
+      fast: true,
+      languages: ['English'],
+    }),
+    createSource('Vidsrc', `https://vidsrc.cc/embed/${tmdbId}`, '1080p', {
+      recommended: true,
+      fast: true,
+      ads: true,
+      languages: ['English'],
+    }),
+    createSource('Movies7', `https://movies7.to/watch/${tmdbId}`, '720p', {
+      fast: true,
+      ads: true,
+      languages: ['English', 'Hindi'],
+    }),
+    createSource('VidPlay', `https://vidplay.online/embed/${tmdbId}`, '1080p', {
+      fast: true,
+      ads: true,
+      resumable: true,
+      languages: ['English', 'Hindi', 'Tamil'],
+    }),
+    createSource('AutoEmbed', `https://autoembed.to/movie/tmdb/${tmdbId}`, 'auto', {
+      languages: ['English', 'Spanish', 'Portuguese'],
+    }),
+    createSource(
+      'SuperEmbed',
+      `https://multiembed.mov/directstream.php?video_id=${tmdbId}&tmdb=1`,
+      'auto',
+      { fast: true, ads: true, languages: ['English'] },
+    ),
+    createSource('MultiEmbed', `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`, 'auto', {
+      languages: ['English'],
+    }),
+    createSource('VidSrc 1', `https://vidsrc.xyz/embed/movie/${tmdbId}`, 'auto', {
+      ads: true,
+      languages: ['English'],
+    }),
+    createSource('VidSrc 2', `https://vidsrc.to/embed/movie/${tmdbId}`, 'auto', {
+      ads: true,
+      languages: ['English'],
+    }),
+    createSource('VidSrc 3', `https://vidsrc.icu/embed/movie/${tmdbId}`, 'auto', {
+      ads: true,
+      languages: ['English'],
+    }),
+    createSource('VidSrc 4', `https://vidsrc.cc/v2/embed/movie/${tmdbId}?autoPlay=false`, 'auto', {
+      ads: true,
+      languages: ['English'],
+    }),
+    createSource('VidSrc 5', `https://vidsrc.cc/v3/embed/movie/${tmdbId}?autoPlay=false`, 'auto', {
+      recommended: true,
+      fast: true,
+      ads: true,
+      languages: ['English'],
+    }),
+    createSource('MoviesAPI', `https://moviesapi.club/movie/${tmdbId}`, 'auto', {
+      ads: true,
+      languages: ['English', 'Hindi'],
+    }),
+  ];
+}
+
+/**
+ * Get working video sources for TV shows
+ */
+export function getTVSources(tmdbId: string, season: number, episode: number): VideoSource[] {
+  return [
+    createSource(
+      'VidLink',
+      `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?player=jw&primaryColor=f5a524&secondaryColor=a2a2a2&iconColor=eefdec&autoplay=false`,
+      'auto',
+      { recommended: true, fast: true, ads: true, resumable: true, languages: ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam'] },
+    ),
+    createSource(
+      'VidLink 2',
+      `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?primaryColor=f5a524&autoplay=false`,
+      'auto',
+      { recommended: true, fast: true, ads: true, resumable: true, languages: ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada'] },
+    ),
+    createSource(
+      'VidKing',
+      `https://www.vidking.net/embed/tv/${tmdbId}/${season}/${episode}?color=f5a524&autoplay=false`,
+      'auto',
+      { recommended: true, fast: true, resumable: true, languages: ['English', 'Hindi', 'Spanish'] },
+    ),
+    createSource('2Embed', `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`, '1080p', {
+      recommended: true,
+      fast: true,
+      languages: ['English'],
+    }),
+    createSource('Vidsrc', `https://vidsrc.cc/embed/tv/${tmdbId}/${season}/${episode}`, '1080p', {
+      recommended: true,
+      fast: true,
+      ads: true,
+      languages: ['English'],
+    }),
+    createSource('Movies7', `https://movies7.to/watch-tv/${tmdbId}-${season}-${episode}`, '720p', {
+      fast: true,
+      ads: true,
+      languages: ['English', 'Hindi'],
+    }),
+    createSource('VidPlay', `https://vidplay.online/embed/${tmdbId}?season=${season}&episode=${episode}`, '1080p', {
+      fast: true,
+      ads: true,
+      resumable: true,
+      languages: ['English', 'Hindi', 'Tamil'],
+    }),
+    createSource('AutoEmbed', `https://autoembed.to/series/tmdb/${tmdbId}/${season}/${episode}`, 'auto', {
+      languages: ['English', 'Spanish', 'Portuguese'],
+    }),
+    createSource(
+      'SuperEmbed',
+      `https://multiembed.mov/directstream.php?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`,
+      'auto',
+      { fast: true, ads: true, languages: ['English'] },
+    ),
+    createSource('MultiEmbed', `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`, 'auto', {
+      languages: ['English'],
+    }),
+    createSource('VidSrc 1', `https://vidsrc.xyz/embed/tv/${tmdbId}/${season}/${episode}`, 'auto', {
+      ads: true,
+      languages: ['English'],
+    }),
+    createSource('VidSrc 2', `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`, 'auto', {
+      ads: true,
+      languages: ['English'],
+    }),
+    createSource('VidSrc 3', `https://vidsrc.icu/embed/tv/${tmdbId}/${season}/${episode}`, 'auto', {
+      ads: true,
+      languages: ['English'],
+    }),
+    createSource('VidSrc 4', `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}?autoPlay=false`, 'auto', {
+      ads: true,
+      languages: ['English'],
+    }),
+    createSource('VidSrc 5', `https://vidsrc.cc/v3/embed/tv/${tmdbId}/${season}/${episode}?autoPlay=false`, 'auto', {
+      recommended: true,
+      fast: true,
+      ads: true,
+      languages: ['English'],
+    }),
+    createSource('MoviesAPI', `https://moviesapi.club/tv/${tmdbId}-${season}-${episode}`, 'auto', {
+      ads: true,
+      languages: ['English', 'Hindi'],
+    }),
+  ];
+}
 
 /**
  * Fetch video sources from our backend API
- * which uses Consumet to scrape direct links
  */
 export async function fetchVideoSources(
   type: 'movie' | 'tv' | 'anime',
@@ -31,99 +255,60 @@ export async function fetchVideoSources(
   season?: number,
   episode?: number
 ): Promise<VideoSource[]> {
-  // Create cache key
-  const cacheKey = `${type}-${id}-${season || 0}-${episode || 0}`;
-  
-  // Check cache
-  const cached = sourceCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-    return cached.sources;
-  }
-
   try {
     const params = new URLSearchParams({
       id,
       type: type === 'anime' ? 'tv' : type,
-      anime: (type === 'anime').toString(),
       ...(season && { season: season.toString() }),
-      ...(episode && { episode: episode.toString() })
+      ...(episode && { episode: episode.toString() }),
+      ...(type === 'anime' && { anime: 'true' })
     });
 
     const res = await fetch(`/api/video?${params}`, {
-      next: { revalidate: 300 } // 5 minute revalidation
+      cache: 'no-store'
     });
 
-    if (!res.ok) {
-      // Fallback to backup sources
-      return getBackupSources(type, id);
+    if (res.ok) {
+      const data = await res.json();
+
+      if (data.sources && Array.isArray(data.sources) && data.sources.length > 0) {
+        return data.sources.map((source: any) => ({
+          name: source.name || 'Source',
+          url: source.url,
+          quality: source.quality || 'auto',
+          type: (source.type === 'hls' || source.type === 'mp4' ? source.type : 'iframe') as const,
+          recommended: Boolean(source.recommended),
+          fast: Boolean(source.fast),
+          ads: Boolean(source.ads),
+          resumable: Boolean(source.resumable),
+        }));
+      }
     }
 
-    const data = await res.json();
-    
-    if (data.sources && Array.isArray(data.sources)) {
-      const sources = data.sources.map((source: any) => ({
-        name: source.name || source.provider || source.quality || 'Source',
-        url: source.url,
-        quality: source.quality || 'auto',
-        type: source.isM3u8 ? 'hls' : 'iframe',
-        isM3u8: source.isM3u8 || source.url?.includes('.m3u8')
-      }));
-
-      // Cache the result
-      sourceCache.set(cacheKey, {
-        sources,
-        timestamp: Date.now()
-      });
-
-      return sources;
-    }
-
-    return getBackupSources(type, id);
+    // Fallback to direct source generation if API fails
+    return getFallbackSources(type, id, season, episode);
   } catch (error) {
     console.error('Failed to fetch video sources:', error);
-    return getBackupSources(type, id);
+    return getFallbackSources(type, id, season, episode);
   }
 }
 
 /**
- * Fallback sources when Consumet fails
- * These are reliable multi-embed alternatives
+ * Fallback sources when API fails - directly generated
  */
-function getBackupSources(type: 'movie' | 'tv' | 'anime', id: string): VideoSource[] {
-  const backupSources: VideoSource[] = [];
-
+export function getFallbackSources(
+  type: 'movie' | 'tv' | 'anime',
+  id: string,
+  season?: number,
+  episode?: number
+): VideoSource[] {
   if (type === 'anime') {
-    // Anime fallbacks
-    backupSources.push(
-      { name: 'GoGoAnime', url: `https://gogocdn.net/embed/${id}`, quality: '1080p', type: 'iframe' },
-      { name: '9Anime', url: `https://vip.9anime.to/watch/${id}`, quality: '1080p', type: 'iframe' },
-      { name: 'Backup Player', url: `https://autoembed.to/anime/${id}`, quality: '720p', type: 'iframe' }
-    );
+    return [createSource('AutoEmbed Anime', `https://autoembed.to/anime/${id}`)];
+  } else if (type === 'tv' && season && episode) {
+    return getTVSources(id, season, episode);
   } else {
-    // Movie/TV fallbacks - use MultiEmbed which supports auto-switching
-    backupSources.push(
-      {
-        name: 'MultiEmbed (Auto-Switch)',
-        url: `https://multiembed.mov/?video_id=${id}&tmdb=1`,
-        quality: 'auto',
-        type: 'iframe'
-      },
-      {
-        name: 'AutoEmbed',
-        url: `https://autoembed.to/movie/tmdb/${id}`,
-        quality: 'auto',
-        type: 'iframe'
-      },
-      {
-        name: 'SuperEmbed',
-        url: `https://multiembed.mov/directstream.php?video_id=${id}&tmdb=1`,
-        quality: '720p',
-        type: 'iframe'
-      }
-    );
+    return getMovieSources(id);
   }
-
-  return backupSources.filter(s => s.url);
 }
 
 /**
@@ -149,11 +334,4 @@ export async function getVideoSource(
 ): Promise<VideoSource | null> {
   const sources = await getAllVideoSources(type, id, season, episode);
   return sources[0] || null;
-}
-
-/**
- * Clear cache (useful for testing or manual refresh)
- */
-export function clearSourceCache(): void {
-  sourceCache.clear();
 }
