@@ -1,5 +1,5 @@
 // IPTV API Client
-import { IPTVChannel, IPTVChannelGroup } from '@/types/iptv';
+import { IPTVChannel, IPTVChannelGroup, IPTVGuideEntry } from '@/types/iptv';
 
 const CHANNELS_URL = 'https://iptv-org.github.io/api/channels.json';
 
@@ -12,6 +12,10 @@ interface RawIPTVChannel {
   country: string[];
   language: string[];
   website?: string;
+  tvgId?: string;
+  xmltvId?: string;
+  groupTitle?: string;
+  [key: string]: unknown;
 }
 
 // Cache for IPTV data
@@ -49,6 +53,9 @@ async function fetchIPTVChannels(): Promise<IPTVChannel[]> {
         country: ch.country,
         language: ch.language,
         website: ch.website || null,
+        tvgId: ch.tvgId || null,
+        xmltvId: ch.xmltvId || null,
+        groupTitle: ch.groupTitle || null,
         status: 'unknown' as const,
       }));
 
@@ -123,4 +130,75 @@ export async function getChannelsByCountry(
 ): Promise<IPTVChannel[]> {
   const channels = await fetchIPTVChannels();
   return channels.filter((ch) => ch.country.includes(country));
+}
+
+function decodeXmlEntities(value: string) {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+}
+
+function extractTagValue(xml: string, tagName: string) {
+  const match = xml.match(new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\/${tagName}>`, 'i'));
+  return match ? decodeXmlEntities(match[1]) : null;
+}
+
+function parseXmltvGuide(xml: string): IPTVGuideEntry[] {
+  const programmes: IPTVGuideEntry[] = [];
+  const programmePattern = /<programme\b([^>]*)>([\s\S]*?)<\/programme>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = programmePattern.exec(xml))) {
+    const attrs = Object.fromEntries(
+      [...match[1].matchAll(/([\w-]+)="([^"]*)"/g)].map(([, key, value]) => [key, value])
+    ) as Record<string, string>;
+
+    const title = extractTagValue(match[2], 'title');
+    const description = extractTagValue(match[2], 'desc');
+
+    if (!attrs.channel || !title || !attrs.start || !attrs.stop) {
+      continue;
+    }
+
+    programmes.push({
+      channelId: decodeXmlEntities(attrs.channel),
+      title,
+      start: attrs.start,
+      stop: attrs.stop,
+      description,
+    });
+  }
+
+  return programmes;
+}
+
+export async function getLiveTVGuide(channelIds: string[] = [], limit = 60): Promise<IPTVGuideEntry[]> {
+  const guideUrl = process.env.LIVE_TV_EPG_URL;
+
+  if (!guideUrl) {
+    return [];
+  }
+
+  try {
+    const response = await fetch(guideUrl, { next: { revalidate: 3600 } });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const xml = await response.text();
+    const guide = parseXmltvGuide(xml);
+
+    const matchingGuide = channelIds.length === 0
+      ? guide
+      : guide.filter((entry) => channelIds.includes(entry.channelId));
+
+    return matchingGuide.slice(0, limit);
+  } catch {
+    return [];
+  }
 }

@@ -9,12 +9,23 @@ export interface IPTVChannel {
   country: string[];
   language: string[];
   website: string | null;
+  tvgId?: string | null;
+  xmltvId?: string | null;
+  groupTitle?: string | null;
   status: 'online' | 'offline' | 'unknown';
 }
 
 export interface IPTVChannelGroup {
   category: string;
   channels: IPTVChannel[];
+}
+
+export interface IPTVGuideEntry {
+  channelId: string;
+  title: string;
+  start: string;
+  stop: string;
+  description: string | null;
 }
 
 export interface IPTVAPIResponse {
