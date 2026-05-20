@@ -34,7 +34,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
   let similar: any[] = [];
   let seasons: any[] = [];
   let imdbId = '';
-  let tmdbId = mediaId;
+  const tmdbId = mediaId;
 
   try {
     if (type === 'movie') {

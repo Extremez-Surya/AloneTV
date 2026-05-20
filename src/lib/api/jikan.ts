@@ -68,13 +68,11 @@ async function fetchJikan<T>(endpoint: string, revalidate = 3600): Promise<T> {
       }
 
       if (!res.ok) {
-        console.warn(`Jikan API returned ${res.status}`);
         return { data: [] } as T; // Return empty data on error
       }
 
       return res.json();
-    } catch (error) {
-      console.error('Jikan fetch error:', error);
+    } catch {
       return { data: [] } as T;
     }
   });

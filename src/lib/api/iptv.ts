@@ -65,8 +65,7 @@ async function fetchIPTVChannels(): Promise<IPTVChannel[]> {
     cachedChannels = validChannels;
     cacheTimestamp = Date.now();
     return validChannels;
-  } catch (error) {
-    console.error('Failed to fetch IPTV channels:', error);
+  } catch {
     return cachedChannels || [];
   }
 }

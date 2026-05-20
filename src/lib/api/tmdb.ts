@@ -45,6 +45,15 @@ function isRetryableTMDBError(error: unknown): boolean {
   );
 }
 
+function createEmptyTMDBResponse<T>(): T {
+  return {
+    page: 1,
+    results: [],
+    total_pages: 0,
+    total_results: 0,
+  } as T;
+}
+
 async function processQueue() {
   if (activeRequests >= MAX_CONCURRENT_REQUESTS || requestQueue.length === 0) {
     return;
@@ -70,13 +79,7 @@ async function fetchTMDB<T>(
   const apiKey = process.env.TMDB_API_KEY;
 
   if (!apiKey || apiKey === 'your_tmdb_api_key_here') {
-    console.warn('TMDB_API_KEY is not configured. Using fallback data.');
-    return {
-      page: 1,
-      results: [],
-      total_pages: 0,
-      total_results: 0,
-    } as T;
+    return createEmptyTMDBResponse<T>();
   }
 
   const url = `${TMDB_BASE_URL}${endpoint}${endpoint.includes('?') ? '&' : '?'}api_key=${apiKey}&language=en-US`;
@@ -89,7 +92,6 @@ async function fetchTMDB<T>(
 
   const requestPromise = new Promise<T>((resolve) => {
     const makeRequest = async () => {
-      let lastError: Error | null = null;
 
       // Retry logic with exponential backoff
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -108,11 +110,9 @@ async function fetchTMDB<T>(
             if (res.status === 429) {
               // Rate limited - wait and retry
               const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
-              console.warn(`TMDB Rate limited. Retrying in ${waitTime}ms...`);
               await new Promise((r) => setTimeout(r, waitTime));
               continue;
             }
-            console.error(`TMDB API Error: ${res.status} ${res.statusText}`);
             throw new Error(`TMDB API Error: ${res.status}`);
           }
 
@@ -120,18 +120,12 @@ async function fetchTMDB<T>(
           resolve(data);
           return;
         } catch (error) {
-          lastError = error as Error;
-
           const shouldRetry = attempt < maxRetries && isRetryableTMDBError(error);
 
           if (shouldRetry) {
             const baseWaitTime = Math.pow(2, attempt) * 750;
             const jitter = Math.floor(Math.random() * 250);
             const waitTime = baseWaitTime + jitter;
-            console.warn(
-              `TMDB fetch attempt ${attempt + 1} failed for ${endpoint}. Retrying in ${waitTime}ms...`,
-              error
-            );
             await new Promise((r) => setTimeout(r, waitTime));
             continue;
           }
@@ -141,13 +135,7 @@ async function fetchTMDB<T>(
       }
 
       // All retries failed
-      console.error('TMDB fetch error after retries:', lastError);
-      resolve({
-        page: 1,
-        results: [],
-        total_pages: 0,
-        total_results: 0,
-      } as T);
+      resolve(createEmptyTMDBResponse<T>());
     };
 
     // Add request to queue
