@@ -318,7 +318,8 @@ async function buildTVCatalog() {
     disneyContent: firstFallback(disneyItems, popularItems),
     realityShows: firstFallback(realityItems, popularItems),
     kidsCollection: firstFallback(kidsItems, popularItems),
-    webSeries: firstFallback(webSeriesItems, popularItems),
+      webSeriesOnly: webSeriesItems,
+      webSeries: firstFallback(webSeriesItems, popularItems),
     miniSeries: firstFallback(miniSeriesItems, popularItems),
     standUpComedy: firstFallback(standUpItems, popularItems),
     all: combined,
@@ -488,6 +489,24 @@ export const getTVPageModel = cache(async (): Promise<PremiumPageModel> => {
   };
 });
 
+export const getWebSeriesPageModel = cache(async (): Promise<PremiumPageModel> => {
+  const tv = await getTVCatalog();
+  const webSeriesItems = tv.webSeriesOnly;
+
+  return {
+    heroItems: pick(webSeriesItems.slice(0, 6), 6),
+    sections: [
+      {
+        id: 'web-series',
+        title: 'Web Series',
+        subtitle: 'Serialized stories built for streaming',
+        href: '/web-series#web-series',
+        type: 'tv',
+        items: webSeriesItems,
+      },
+    ],
+  };
+});
 export const getAnimePageModel = cache(async (): Promise<PremiumPageModel> => {
   const anime = await getAnimeCatalog();
 

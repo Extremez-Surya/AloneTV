@@ -1,7 +1,5 @@
 import HeroBanner from '@/components/layout/HeroBanner';
 import CollectionRail from '@/components/content/CollectionRail';
-import CreatorCorner from '@/components/content/CreatorCorner';
-import LiveTVSection from '@/components/content/LiveTVSection';
 import { getHomePageModel } from '@/lib/ott-collections';
 
 export default async function Home() {
@@ -28,13 +26,6 @@ export default async function Home() {
         {model.sections.map((section) => (
           <CollectionRail key={section.id} section={section} />
         ))}
-
-        <div className="mx-auto max-w-350 px-4 py-8 sm:px-6">
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <LiveTVSection />
-            <CreatorCorner />
-          </div>
-        </div>
       </div>
     </div>
   );

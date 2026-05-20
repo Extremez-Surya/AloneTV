@@ -11,23 +11,23 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "CineVibez - Free 4K Movies, TV Shows & Anime Streaming",
+    default: "CineVibez - Free 4K Movies, TV Shows, Web Series & Anime Streaming",
     template: "%s | CineVibez",
   },
   description:
-    "Stream unlimited movies, TV shows, anime, and live TV in stunning 4K quality. Your premium entertainment destination.",
+    "Stream unlimited movies, TV shows, web series, and anime in stunning 4K quality. Your premium entertainment destination.",
   keywords: [
     "streaming",
     "movies",
     "TV shows",
+    "web series",
     "anime",
-    "live TV",
     "4K",
     "free streaming",
   ],
   openGraph: {
     title: "CineVibez - Free 4K Streaming Platform",
-    description: "Stream unlimited movies, TV shows, anime & live TV in stunning 4K quality.",
+    description: "Stream unlimited movies, TV shows, web series & anime in stunning 4K quality.",
     type: "website",
     locale: "en_US",
     siteName: "CineVibez",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "CineVibez - Free 4K Streaming Platform",
-    description: "Stream unlimited movies, TV shows, anime & live TV in stunning 4K quality.",
+    description: "Stream unlimited movies, TV shows, web series & anime in stunning 4K quality.",
   },
   robots: {
     index: true,

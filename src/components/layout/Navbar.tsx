@@ -9,9 +9,8 @@ const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/movies', label: 'Movies' },
   { href: '/tv', label: 'TV Shows' },
+  { href: '/web-series', label: 'Web Series' },
   { href: '/anime', label: 'Anime' },
-  { href: '/live', label: 'Live TV' },
-  { href: '/creator', label: 'Creator Corner' },
 ];
 
 export default function Navbar() {
