@@ -1,76 +1,95 @@
-import type { Metadata, Viewport } from 'next';
-import { Manrope, Space_Grotesk } from 'next/font/google';
-import './globals.css';
-import Navbar from '@/components/layout/Navbar';
-import { siteConfig } from '@/lib/platform';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import Navbar from "@/components/layout/Navbar";
 
-const manrope = Manrope({
-  variable: '--font-manrope',
-  subsets: ['latin'],
-  display: 'swap',
-});
-
-const spaceGrotesk = Space_Grotesk({
-  variable: '--font-display',
-  subsets: ['latin'],
-  display: 'swap',
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteConfig.url),
   title: {
-    default: `${siteConfig.name} | Advanced OTT Streaming Platform`,
-    template: `%s | ${siteConfig.name}`,
+    default: "CineVibez - Free 4K Movies, TV Shows, Web Series & Anime Streaming",
+    template: "%s | CineVibez",
   },
-  applicationName: siteConfig.name,
-  description: siteConfig.description,
+  description:
+    "Stream unlimited movies, TV shows, web series, and anime in stunning 4K quality. Your premium entertainment destination.",
   keywords: [
-    'OTT platform',
-    'movies streaming',
-    'live TV',
-    'anime streaming',
-    'TV shows',
-    'web series',
-    'HLS streaming',
-    'PWA OTT app',
+    "streaming",
+    "movies",
+    "TV shows",
+    "web series",
+    "anime",
+    "4K",
+    "free streaming",
   ],
   openGraph: {
-    title: `${siteConfig.name} | Advanced OTT Streaming Platform`,
-    description: siteConfig.description,
-    url: '/',
-    type: 'website',
-    locale: 'en_US',
-    siteName: siteConfig.name,
+    title: "CineVibez - Free 4K Streaming Platform",
+    description: "Stream unlimited movies, TV shows, web series & anime in stunning 4K quality.",
+    type: "website",
+    locale: "en_US",
+    siteName: "CineVibez",
   },
   twitter: {
-    card: 'summary_large_image',
-    title: `${siteConfig.name} | Advanced OTT Streaming Platform`,
-    description: siteConfig.description,
+    card: "summary_large_image",
+    title: "CineVibez - Free 4K Streaming Platform",
+    description: "Stream unlimited movies, TV shows, web series & anime in stunning 4K quality.",
   },
   robots: {
     index: true,
     follow: true,
   },
-  alternates: {
-    canonical: '/',
-  },
 };
 
-export const viewport: Viewport = {
-  themeColor: '#05070b',
-  colorScheme: 'dark',
-};
-
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html
-      lang="en"
-      data-scroll-behavior="smooth"
-      className={`${manrope.variable} ${spaceGrotesk.variable} h-full antialiased`}
-    >
+    <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-bg-primary text-text-primary">
         <Navbar />
-        <main className="flex-1 pt-[96px] md:pt-8 md:pl-[280px]">{children}</main>
+        <main className="flex-1">{children}</main>
+        <footer className="border-t border-white/5 py-8">
+          <div className="max-w-350 mx-auto px-4 sm:px-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-linear-to-br from-accent-purple to-accent-teal flex items-center justify-center">
+                  <svg
+                    className="w-5 h-5 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"
+                    />
+                  </svg>
+                </div>
+                <span className="text-sm text-gray-400">
+                  CineVibez {new Date().getFullYear()}
+                </span>
+              </div>
+              <div className="flex items-center gap-6 text-sm text-gray-400">
+                <a href="#" className="hover:text-white transition-colors">
+                  Privacy Policy
+                </a>
+                <a href="#" className="hover:text-white transition-colors">
+                  Terms of Service
+                </a>
+                <a href="#" className="hover:text-white transition-colors">
+                  Contact
+                </a>
+              </div>
+            </div>
+          </div>
+        </footer>
       </body>
     </html>
   );

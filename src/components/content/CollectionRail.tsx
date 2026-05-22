@@ -47,23 +47,20 @@ export default function CollectionRail({ section, icon }: CollectionRailProps) {
 
   return (
     <section id={section.id} className="scroll-mt-24 py-8 sm:py-10">
-      <div className="mx-auto mb-5 flex max-w-[1600px] items-end justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto mb-5 flex max-w-350 items-end justify-between gap-4 px-4 sm:px-6">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             {icon && <span className="text-accent-purple">{icon}</span>}
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               {section.title}
             </h2>
-            <span className="hidden rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/38 sm:inline-flex">
-              {section.items.length} titles
-            </span>
           </div>
           {section.subtitle && <p className="max-w-2xl text-sm text-white/50">{section.subtitle}</p>}
         </div>
 
         <Link
           href={section.href}
-          className="hidden shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:bg-white/10 sm:inline-flex"
+          className="hidden shrink-0 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:bg-white/10 sm:inline-flex"
         >
           View All
         </Link>
@@ -112,7 +109,7 @@ export default function CollectionRail({ section, icon }: CollectionRailProps) {
         </button>
       </div>
 
-      <div className="mx-auto mt-4 max-w-[1600px] px-4 sm:px-6 sm:hidden">
+      <div className="mx-auto mt-4 max-w-350 px-4 sm:px-6 sm:hidden">
         <Link
           href={section.href}
           className="inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:bg-white/10"
