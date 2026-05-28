@@ -3,6 +3,8 @@
  * Reliable iframe embed sources with auto-switching
  */
 
+import { SUPPORTED_LANGUAGES } from '@/lib/audioPreferences';
+
 export interface VideoSource {
   name: string;
   url: string;
