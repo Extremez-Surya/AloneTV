@@ -111,6 +111,10 @@ function createScreenScapeSource(
   };
 }
 
+interface SourceOptions {
+  includeScreenScape?: boolean;
+}
+
 /**
  * Get supported languages for a provider
  * Most providers support original + select dubs
@@ -137,9 +141,8 @@ function getProviderLanguages(providerName: string): string[] {
  * Get working video sources for movies
  * Uses multi-provider embed sites with auto-switching
  */
-export function getMovieSources(tmdbId: string): VideoSource[] {
-  return [
-    createScreenScapeSource('movie', tmdbId),
+export function getMovieSources(tmdbId: string, options: SourceOptions = {}): VideoSource[] {
+  const sources = [
     createSource(
       'VidLink',
       `https://vidlink.pro/movie/${tmdbId}?player=jw&primaryColor=006fee&secondaryColor=a2a2a2&iconColor=eefdec&autoplay=false`,
@@ -219,14 +222,19 @@ export function getMovieSources(tmdbId: string): VideoSource[] {
       languages: ['English', 'Hindi'],
     }),
   ];
+
+  if (options.includeScreenScape !== false) {
+    sources.unshift(createScreenScapeSource('movie', tmdbId));
+  }
+
+  return sources;
 }
 
 /**
  * Get working video sources for TV shows
  */
-export function getTVSources(tmdbId: string, season: number, episode: number): VideoSource[] {
-  return [
-    createScreenScapeSource('tv', tmdbId, season, episode),
+export function getTVSources(tmdbId: string, season: number, episode: number, options: SourceOptions = {}): VideoSource[] {
+  const sources = [
     createSource(
       'VidLink',
       `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?player=jw&primaryColor=f5a524&secondaryColor=a2a2a2&iconColor=eefdec&autoplay=false`,
@@ -306,6 +314,12 @@ export function getTVSources(tmdbId: string, season: number, episode: number): V
       languages: ['English', 'Hindi'],
     }),
   ];
+
+  if (options.includeScreenScape !== false) {
+    sources.unshift(createScreenScapeSource('tv', tmdbId, season, episode));
+  }
+
+  return sources;
 }
 
 /**
@@ -349,10 +363,10 @@ export async function fetchVideoSources(
     }
 
     // Fallback to direct source generation if API fails
-    return getFallbackSources(type, id, season, episode);
+    return getFallbackSources(type, id, season, episode, { includeScreenScape: false });
   } catch (error) {
     console.error('Failed to fetch video sources:', error);
-    return getFallbackSources(type, id, season, episode);
+    return getFallbackSources(type, id, season, episode, { includeScreenScape: false });
   }
 }
 
@@ -363,14 +377,15 @@ export function getFallbackSources(
   type: 'movie' | 'tv' | 'anime',
   id: string,
   season?: number,
-  episode?: number
+  episode?: number,
+  options: SourceOptions = {}
 ): VideoSource[] {
   if (type === 'anime') {
     return [createSource('AutoEmbed Anime', `https://autoembed.to/anime/${id}`)];
   } else if (type === 'tv' && season && episode) {
-    return getTVSources(id, season, episode);
+    return getTVSources(id, season, episode, options);
   } else {
-    return getMovieSources(id);
+    return getMovieSources(id, options);
   }
 }
 
