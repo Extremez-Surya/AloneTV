@@ -5,7 +5,7 @@ import type { VideoSource } from '@/lib/api/videoSources';
 import { 
   getPreferredAudioLanguage, 
   setPreferredAudioLanguage, 
-  detectSystemLanguage,
+  filterLanguagesBySource,
   SUPPORTED_LANGUAGES,
   type AudioLanguage 
 } from '@/lib/audioPreferences';
@@ -25,7 +25,7 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
   const [errorMessage, setErrorMessage] = useState('');
   const [autoSwitchCount, setAutoSwitchCount] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState<AudioLanguage>('English');
-  const [availableLanguages, setAvailableLanguages] = useState<string[]>(['English']);
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>(SUPPORTED_LANGUAGES);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const autoSwitchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -39,13 +39,12 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
 
   // Update available languages when source changes
   useEffect(() => {
-    if (currentSource?.languages) {
-      setAvailableLanguages(currentSource.languages);
-      // If current language not available in new source, try to find a compatible one
-      if (!currentSource.languages.includes(selectedLanguage)) {
-        const firstLang = (currentSource.languages[0] as AudioLanguage) || 'English';
-        setSelectedLanguage(firstLang);
-      }
+    const sourceLanguages = currentSource?.languages?.length ? currentSource.languages : SUPPORTED_LANGUAGES;
+    setAvailableLanguages(sourceLanguages);
+
+    // If current language not available in new source, pick the closest match.
+    if (!sourceLanguages.includes(selectedLanguage)) {
+      setSelectedLanguage(filterLanguagesBySource(sourceLanguages, selectedLanguage));
     }
   }, [currentSource, selectedLanguage]);
 
@@ -274,9 +273,9 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
           )}
         </div>
 
-        {/* Audio Language Selection */}
+        {/* Language Selection */}
         <div className="pt-3 border-t border-white/10 flex items-center gap-3 flex-wrap">
-          <span className="text-gray-400 text-sm font-medium">Audio:</span>
+          <span className="text-gray-400 text-sm font-medium">Languages:</span>
           <select
             value={selectedLanguage}
             onChange={(e) => handleLanguageChange(e.target.value as AudioLanguage)}

@@ -3,6 +3,8 @@
  * Reliable iframe embed sources with auto-switching
  */
 
+import { SUPPORTED_LANGUAGES } from '@/lib/audioPreferences';
+
 export interface VideoSource {
   name: string;
   url: string;
@@ -49,6 +51,7 @@ function createSource(
     quality,
     type: 'iframe',
     ...flags,
+    languages: [...SUPPORTED_LANGUAGES],
   };
 }
 
@@ -57,20 +60,7 @@ function createSource(
  * Most providers support original + select dubs
  */
 function getProviderLanguages(providerName: string): string[] {
-  const languageMap: Record<string, string[]> = {
-    'VidLink': ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam'],
-    'VidLink 2': ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada'],
-    'VidKing': ['English', 'Hindi', 'Spanish'],
-    '2Embed': ['English'],
-    'Vidsrc': ['English'],
-    'Movies7': ['English', 'Hindi'],
-    'VidPlay': ['English', 'Hindi', 'Tamil'],
-    'AutoEmbed': ['English', 'Spanish', 'Portuguese'],
-    'SuperEmbed': ['English'],
-    'MultiEmbed': ['English'],
-    'MoviesAPI': ['English', 'Hindi'],
-  };
-  return languageMap[providerName] || ['English'];
+  return [...SUPPORTED_LANGUAGES];
 }
 
 /**
@@ -131,23 +121,23 @@ export function getMovieSources(tmdbId: string): VideoSource[] {
     createSource('MultiEmbed', `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`, 'auto', {
       languages: ['English'],
     }),
-    createSource('VidSrc 1', `https://vidsrc.xyz/embed/movie/${tmdbId}`, 'auto', {
+    createSource('VidSrc 1', `https://vidsrc.xyz/embed/movie/${tmdbId}`, '1080p', {
       ads: true,
       languages: ['English'],
     }),
-    createSource('VidSrc 2', `https://vidsrc.to/embed/movie/${tmdbId}`, 'auto', {
+    createSource('VidSrc 2', `https://vidsrc.to/embed/movie/${tmdbId}`, '1080p', {
       ads: true,
       languages: ['English'],
     }),
-    createSource('VidSrc 3', `https://vidsrc.icu/embed/movie/${tmdbId}`, 'auto', {
+    createSource('VidSrc 3', `https://vidsrc.icu/embed/movie/${tmdbId}`, '1080p', {
       ads: true,
       languages: ['English'],
     }),
-    createSource('VidSrc 4', `https://vidsrc.cc/v2/embed/movie/${tmdbId}?autoPlay=false`, 'auto', {
+    createSource('VidSrc 4', `https://vidsrc.cc/v2/embed/movie/${tmdbId}?autoPlay=false`, '1080p', {
       ads: true,
       languages: ['English'],
     }),
-    createSource('VidSrc 5', `https://vidsrc.cc/v3/embed/movie/${tmdbId}?autoPlay=false`, 'auto', {
+    createSource('VidSrc 5', `https://vidsrc.cc/v3/embed/movie/${tmdbId}?autoPlay=false`, '1080p', {
       recommended: true,
       fast: true,
       ads: true,
@@ -217,23 +207,23 @@ export function getTVSources(tmdbId: string, season: number, episode: number): V
     createSource('MultiEmbed', `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`, 'auto', {
       languages: ['English'],
     }),
-    createSource('VidSrc 1', `https://vidsrc.xyz/embed/tv/${tmdbId}/${season}/${episode}`, 'auto', {
+    createSource('VidSrc 1', `https://vidsrc.xyz/embed/tv/${tmdbId}/${season}/${episode}`, '1080p', {
       ads: true,
       languages: ['English'],
     }),
-    createSource('VidSrc 2', `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`, 'auto', {
+    createSource('VidSrc 2', `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`, '1080p', {
       ads: true,
       languages: ['English'],
     }),
-    createSource('VidSrc 3', `https://vidsrc.icu/embed/tv/${tmdbId}/${season}/${episode}`, 'auto', {
+    createSource('VidSrc 3', `https://vidsrc.icu/embed/tv/${tmdbId}/${season}/${episode}`, '1080p', {
       ads: true,
       languages: ['English'],
     }),
-    createSource('VidSrc 4', `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}?autoPlay=false`, 'auto', {
+    createSource('VidSrc 4', `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}?autoPlay=false`, '1080p', {
       ads: true,
       languages: ['English'],
     }),
-    createSource('VidSrc 5', `https://vidsrc.cc/v3/embed/tv/${tmdbId}/${season}/${episode}?autoPlay=false`, 'auto', {
+    createSource('VidSrc 5', `https://vidsrc.cc/v3/embed/tv/${tmdbId}/${season}/${episode}?autoPlay=false`, '1080p', {
       recommended: true,
       fast: true,
       ads: true,
@@ -276,11 +266,12 @@ export async function fetchVideoSources(
           name: source.name || 'Source',
           url: source.url,
           quality: source.quality || 'auto',
-          type: (source.type === 'hls' || source.type === 'mp4' ? source.type : 'iframe') as const,
+          type: (source.type === 'hls' || source.type === 'mp4' ? source.type : 'iframe') as 'hls' | 'mp4' | 'iframe',
           recommended: Boolean(source.recommended),
           fast: Boolean(source.fast),
           ads: Boolean(source.ads),
           resumable: Boolean(source.resumable),
+          languages: Array.isArray(source.languages) && source.languages.length > 0 ? source.languages : undefined,
         }));
       }
     }
