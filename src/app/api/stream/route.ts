@@ -2,10 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Video streaming sources with proxy support
 const STREAM_SOURCES: Record<string, (id: string, season?: number, episode?: number) => string> = {
-  'screenscape': (id, season, episode) =>
-    season ? `https://screenscape.me/embed/tv/${id}/${season}/${episode}?autoplay=0&controls=1&theme=dark&quality=auto&subtitle=en`
-           : `https://screenscape.me/embed/movie/${id}?autoplay=0&controls=1&theme=dark&quality=auto&subtitle=en`,
-
   // Primary sources
   'vidsrc': (id, season, episode) =>
     season ? `https://vidsrc.in/embed/tv/${id}/${season}/${episode}`
@@ -29,7 +25,6 @@ export async function GET(request: NextRequest) {
   const source = searchParams.get('source') || 'vidsrc';
   const season = searchParams.get('season');
   const episode = searchParams.get('episode');
-  const subtitle = searchParams.get('subtitle') || 'en';
 
   if (!tmdbId) {
     return NextResponse.json({ error: 'Missing tmdbId' }, { status: 400 });
@@ -41,10 +36,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid source' }, { status: 400 });
   }
 
-  let streamUrl = streamFn(tmdbId, season ? parseInt(season) : undefined, episode ? parseInt(episode) : undefined);
-  if (source === 'screenscape') {
-    streamUrl = streamUrl.replace('subtitle=en', `subtitle=${subtitle}`);
-  }
+  const streamUrl = streamFn(tmdbId, season ? parseInt(season) : undefined, episode ? parseInt(episode) : undefined);
 
   // Return the stream URL with proxy-friendly headers
   return NextResponse.json({
