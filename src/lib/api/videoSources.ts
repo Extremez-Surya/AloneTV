@@ -13,6 +13,7 @@ export interface VideoSource {
   ads?: boolean;
   resumable?: boolean;
   languages?: string[]; // Audio languages: 'English', 'Hindi', 'Tamil', etc.
+  buildUrl?: (language: AudioLanguage) => string;
 }
 
 export type AudioLanguage = 
@@ -52,6 +53,63 @@ function createSource(
   };
 }
 
+const SCREENSCAPE_SUBTITLE_MAP: Record<AudioLanguage, string> = {
+  English: 'en',
+  Hindi: 'hi',
+  Tamil: 'ta',
+  Telugu: 'te',
+  Kannada: 'kn',
+  Malayalam: 'ml',
+  Marathi: 'mr',
+  Bengali: 'bn',
+  Spanish: 'es',
+  French: 'fr',
+  German: 'de',
+  Portuguese: 'pt',
+  Italian: 'it',
+  Russian: 'ru',
+  Japanese: 'ja',
+  Korean: 'ko',
+  Chinese: 'zh',
+  Thai: 'th',
+  Vietnamese: 'vi',
+  Indonesian: 'id',
+};
+
+function buildScreenScapeUrl(
+  mediaType: 'movie' | 'tv',
+  id: string,
+  language: AudioLanguage,
+  season?: number,
+  episode?: number,
+): string {
+  const subtitle = SCREENSCAPE_SUBTITLE_MAP[language] || 'en';
+  const baseUrl = mediaType === 'tv'
+    ? `https://screenscape.me/embed/tv/${id}/${season ?? 1}/${episode ?? 1}`
+    : `https://screenscape.me/embed/movie/${id}`;
+
+  return `${baseUrl}?autoplay=0&controls=1&theme=dark&quality=auto&subtitle=${subtitle}`;
+}
+
+function createScreenScapeSource(
+  mediaType: 'movie' | 'tv',
+  id: string,
+  season?: number,
+  episode?: number,
+): VideoSource {
+  return {
+    name: 'ScreenScape',
+    url: buildScreenScapeUrl(mediaType, id, 'English', season, episode),
+    quality: 'auto',
+    type: 'iframe',
+    recommended: true,
+    fast: true,
+    resumable: true,
+    languages: [...SUPPORTED_LANGUAGES],
+    buildUrl: (language: AudioLanguage) => buildScreenScapeUrl(mediaType, id, language, season, episode),
+  };
+}
+
 /**
  * Get supported languages for a provider
  * Most providers support original + select dubs
@@ -80,6 +138,7 @@ function getProviderLanguages(providerName: string): string[] {
  */
 export function getMovieSources(tmdbId: string): VideoSource[] {
   return [
+    createScreenScapeSource('movie', tmdbId),
     createSource(
       'VidLink',
       `https://vidlink.pro/movie/${tmdbId}?player=jw&primaryColor=006fee&secondaryColor=a2a2a2&iconColor=eefdec&autoplay=false`,
@@ -166,6 +225,7 @@ export function getMovieSources(tmdbId: string): VideoSource[] {
  */
 export function getTVSources(tmdbId: string, season: number, episode: number): VideoSource[] {
   return [
+    createScreenScapeSource('tv', tmdbId, season, episode),
     createSource(
       'VidLink',
       `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?player=jw&primaryColor=f5a524&secondaryColor=a2a2a2&iconColor=eefdec&autoplay=false`,

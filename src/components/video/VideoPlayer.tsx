@@ -6,6 +6,7 @@ import {
   getPreferredAudioLanguage, 
   setPreferredAudioLanguage, 
   filterLanguagesBySource,
+  SUPPORTED_LANGUAGES,
   type AudioLanguage 
 } from '@/lib/audioPreferences';
 
@@ -29,6 +30,7 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
   const autoSwitchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentSource = sources[currentIndex] || sources[0];
+  const currentStreamUrl = currentSource?.buildUrl ? currentSource.buildUrl(selectedLanguage) : currentSource?.url;
 
   // Initialize language preference
   useEffect(() => {
@@ -128,13 +130,13 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
     setErrorMessage('');
     setAutoSwitchCount(0);
     if (iframeRef.current) {
-      iframeRef.current.src = currentSource?.url || '';
+      iframeRef.current.src = currentStreamUrl || '';
     }
   };
 
   const handleOpenNewTab = () => {
     if (currentSource?.url) {
-      window.open(currentSource.url, '_blank');
+      window.open(currentStreamUrl || currentSource.url, '_blank');
     }
   };
 
@@ -226,9 +228,9 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
         {/* Iframe Player */}
         {currentSource && !hasError && (
           <iframe
-            key={`player-${currentIndex}`}
+            key={`player-${currentIndex}-${selectedLanguage}`}
             ref={iframeRef}
-            src={currentSource.url}
+            src={currentStreamUrl}
             className="absolute inset-0 w-full h-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
             allowFullScreen
