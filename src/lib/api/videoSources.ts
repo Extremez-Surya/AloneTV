@@ -3,8 +3,6 @@
  * Reliable iframe embed sources with auto-switching
  */
 
-import { SUPPORTED_LANGUAGES } from '@/lib/audioPreferences';
-
 export interface VideoSource {
   name: string;
   url: string;
@@ -51,7 +49,6 @@ function createSource(
     quality,
     type: 'iframe',
     ...flags,
-    languages: [...SUPPORTED_LANGUAGES],
   };
 }
 
@@ -60,7 +57,21 @@ function createSource(
  * Most providers support original + select dubs
  */
 function getProviderLanguages(providerName: string): string[] {
-  return [...SUPPORTED_LANGUAGES];
+  const languageMap: Record<string, string[]> = {
+    'VidLink': ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam'],
+    'VidLink 2': ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada'],
+    'VidKing': ['English', 'Hindi', 'Spanish'],
+    '2Embed': ['English'],
+    'Vidsrc': ['English'],
+    'Movies7': ['English', 'Hindi'],
+    'VidPlay': ['English', 'Hindi', 'Tamil'],
+    'AutoEmbed': ['English', 'Spanish', 'Portuguese'],
+    'SuperEmbed': ['English'],
+    'MultiEmbed': ['English'],
+    'MoviesAPI': ['English', 'Hindi'],
+  };
+
+  return languageMap[providerName] || ['English'];
 }
 
 /**

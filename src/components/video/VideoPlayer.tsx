@@ -6,7 +6,6 @@ import {
   getPreferredAudioLanguage, 
   setPreferredAudioLanguage, 
   filterLanguagesBySource,
-  SUPPORTED_LANGUAGES,
   type AudioLanguage 
 } from '@/lib/audioPreferences';
 
@@ -25,7 +24,7 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
   const [errorMessage, setErrorMessage] = useState('');
   const [autoSwitchCount, setAutoSwitchCount] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState<AudioLanguage>('English');
-  const [availableLanguages, setAvailableLanguages] = useState<string[]>(SUPPORTED_LANGUAGES);
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>(['English']);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const autoSwitchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -39,7 +38,7 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
 
   // Update available languages when source changes
   useEffect(() => {
-    const sourceLanguages = currentSource?.languages?.length ? currentSource.languages : SUPPORTED_LANGUAGES;
+    const sourceLanguages = currentSource?.languages?.length ? currentSource.languages : ['English'];
     setAvailableLanguages(sourceLanguages);
 
     // If current language not available in new source, pick the closest match.
