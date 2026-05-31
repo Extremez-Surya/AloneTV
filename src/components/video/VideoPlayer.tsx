@@ -89,6 +89,21 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
     }
   }, [selectedLanguage]);
 
+  // Debug: log current selection and computed stream URL so we can confirm behavior
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line no-console
+      console.info('VideoPlayer debug:', {
+        selectedLanguage,
+        currentIndex,
+        currentSource: currentSource?.name,
+        currentStreamUrl,
+      });
+    } catch (e) {
+      // ignore
+    }
+  }, [selectedLanguage, currentIndex, currentStreamUrl]);
+
   useEffect(() => {
     setCurrentIndex(0);
     setIsLoading(true);
