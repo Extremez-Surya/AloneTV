@@ -15,6 +15,7 @@ export interface VideoSource {
   ads?: boolean;
   resumable?: boolean;
   languages?: string[]; // Audio languages: 'English', 'Hindi', 'Tamil', etc.
+  buildUrl?: (language: AudioLanguage) => string;
 }
 
 export type AudioLanguage = 
