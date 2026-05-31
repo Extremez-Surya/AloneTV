@@ -3,7 +3,7 @@
  * Reliable iframe embed sources with auto-switching
  */
 
-import { SUPPORTED_LANGUAGES } from '@/lib/audioPreferences';
+import { SUPPORTED_LANGUAGES, type AudioLanguage } from '@/lib/audioPreferences';
 
 export interface VideoSource {
   name: string;
@@ -18,41 +18,57 @@ export interface VideoSource {
   buildUrl?: (language: AudioLanguage) => string;
 }
 
-export type AudioLanguage = 
-  | 'English' 
-  | 'Hindi' 
-  | 'Tamil' 
-  | 'Telugu' 
-  | 'Kannada' 
-  | 'Malayalam' 
-  | 'Marathi' 
-  | 'Bengali' 
-  | 'Spanish' 
-  | 'French' 
-  | 'German' 
-  | 'Portuguese' 
-  | 'Italian' 
-  | 'Russian' 
-  | 'Japanese' 
-  | 'Korean' 
-  | 'Chinese' 
-  | 'Thai' 
-  | 'Vietnamese' 
-  | 'Indonesian';
-
 function createSource(
   name: string,
   url: string,
   quality = 'auto',
   flags: Omit<VideoSource, 'name' | 'url' | 'quality' | 'type'> = {},
 ): VideoSource {
-  return {
+  const source: VideoSource = {
     name,
     url,
     quality,
     type: 'iframe',
     ...flags,
   };
+
+  // Default buildUrl: if the source advertises support for the language, try common query params
+  if (!source.buildUrl) {
+    source.buildUrl = (language: AudioLanguage) => {
+      // If the source explicitly lists languages and doesn't include the requested one, return original
+      if (source.languages && !source.languages.includes(language)) return source.url;
+
+      const code = SCREENSCAPE_SUBTITLE_MAP[language] || 'en';
+
+      // If URL already contains a subtitle/lang param, replace it; otherwise, try appending common keys
+      const tryAppend = (base: string, key: string) => {
+        try {
+          const u = new URL(base);
+          u.searchParams.set(key, code);
+          return u.toString();
+        } catch {
+          // Fallback for non-absolute URLs: naive append
+          const sep = base.includes('?') ? '&' : '?';
+          return `${base}${sep}${key}=${code}`;
+        }
+      };
+
+      // Prefer subtitle param used by screenscape/embed providers
+      let candidate = tryAppend(source.url, 'subtitle');
+      if (candidate !== source.url) return candidate;
+
+      candidate = tryAppend(source.url, 'lang');
+      if (candidate !== source.url) return candidate;
+
+      candidate = tryAppend(source.url, 'language');
+      if (candidate !== source.url) return candidate;
+
+      // As last resort, return original URL
+      return source.url;
+    };
+  }
+
+  return source;
 }
 
 const SCREENSCAPE_SUBTITLE_MAP: Record<AudioLanguage, string> = {

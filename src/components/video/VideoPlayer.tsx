@@ -25,7 +25,7 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
   const [errorMessage, setErrorMessage] = useState('');
   const [autoSwitchCount, setAutoSwitchCount] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState<AudioLanguage>('English');
-  const [availableLanguages, setAvailableLanguages] = useState<string[]>(['English']);
+  const [availableLanguages, setAvailableLanguages] = useState<AudioLanguage[]>(['English']);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const autoSwitchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -39,15 +39,55 @@ export default function VideoPlayer({ sources, title }: VideoPlayerProps) {
   }, []);
 
   // Update available languages when source changes
+  // Aggregate languages across all sources and update available languages
   useEffect(() => {
-    const sourceLanguages = currentSource?.languages?.length ? currentSource.languages : ['English'];
-    setAvailableLanguages(sourceLanguages);
-
-    // If current language not available in new source, pick the closest match.
-    if (!sourceLanguages.includes(selectedLanguage)) {
-      setSelectedLanguage(filterLanguagesBySource(sourceLanguages, selectedLanguage));
+    const union = new Set<AudioLanguage>();
+    for (const s of sources) {
+      (s.languages || ['English']).forEach((l) => union.add(l as AudioLanguage));
     }
-  }, [currentSource, selectedLanguage]);
+    // Always include English as a fallback
+    union.add('English');
+    const list = Array.from(union).filter(Boolean) as AudioLanguage[];
+    // Sort by SUPPORTED_LANGUAGES order
+    const sorted = SUPPORTED_LANGUAGES.filter((l) => list.includes(l));
+    setAvailableLanguages(sorted.length ? sorted : (['English'] as AudioLanguage[]));
+
+    // If the selected language is not available globally, fallback to English
+    if (!list.includes(selectedLanguage)) {
+      setSelectedLanguage(filterLanguagesBySource(Array.from(list), selectedLanguage));
+    }
+  }, [sources]);
+
+  // When selected language changes, prefer a source that supports it
+  useEffect(() => {
+    if (!sources || sources.length === 0) return;
+
+    // If current source supports the language, do nothing
+    if (currentSource?.languages?.includes(selectedLanguage)) return;
+
+    // Choose best matching source: recommended + fast, then recommended, then fast, then any
+    const scoring = (s: typeof currentSource) => {
+      let score = 0;
+      if (s.languages?.includes(selectedLanguage)) score += 10;
+      if (s.recommended) score += 3;
+      if (s.fast) score += 2;
+      return score;
+    };
+
+    let bestIndex = currentIndex;
+    let bestScore = -1;
+    sources.forEach((s, idx) => {
+      const sc = scoring(s);
+      if (sc > bestScore) {
+        bestScore = sc;
+        bestIndex = idx;
+      }
+    });
+
+    if (bestIndex !== currentIndex) {
+      setCurrentIndex(bestIndex);
+    }
+  }, [selectedLanguage]);
 
   useEffect(() => {
     setCurrentIndex(0);
