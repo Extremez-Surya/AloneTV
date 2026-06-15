@@ -192,13 +192,146 @@ export async function getExternalIds(tmdbId: number, type: 'movie' | 'tv'): Prom
 
 // Search
 export async function searchMulti(query: string): Promise<TMDBSearchResult[]> {
-  const data = await fetchTMDB<TMDBSearchResponse>(
+  const cleanQuery = query.trim().toLowerCase();
+
+  // Hardcoded standard TMDB Genre ID maps for fast lookup
+  const MOVIE_GENRES: Record<string, number> = {
+    action: 28,
+    adventure: 12,
+    animation: 16,
+    comedy: 35,
+    crime: 80,
+    documentary: 99,
+    drama: 18,
+    family: 10751,
+    fantasy: 14,
+    history: 36,
+    horror: 27,
+    music: 10402,
+    mystery: 9648,
+    romance: 10749,
+    'science fiction': 878,
+    'sci-fi': 878,
+    thriller: 53,
+    war: 10752,
+    western: 37,
+  };
+
+  const TV_GENRES: Record<string, number> = {
+    'action & adventure': 10759,
+    action: 10759,
+    adventure: 10759,
+    animation: 16,
+    comedy: 35,
+    crime: 80,
+    documentary: 99,
+    drama: 18,
+    family: 10751,
+    kids: 10762,
+    mystery: 9648,
+    news: 10763,
+    reality: 10764,
+    'sci-fi & fantasy': 10765,
+    'sci-fi': 10765,
+    fantasy: 10765,
+    soap: 10766,
+    talk: 10767,
+    'war & politics': 10768,
+    war: 10768,
+    politics: 10768,
+  };
+
+  // Check if query matches a genre name (exact or prefix)
+  const matchedMovieGenreKey = Object.keys(MOVIE_GENRES).find(
+    (k) => k === cleanQuery || k.startsWith(cleanQuery)
+  );
+  const matchedTVGenreKey = Object.keys(TV_GENRES).find(
+    (k) => k === cleanQuery || k.startsWith(cleanQuery)
+  );
+
+  const movieGenreId = matchedMovieGenreKey ? MOVIE_GENRES[matchedMovieGenreKey] : null;
+  const tvGenreId = matchedTVGenreKey ? TV_GENRES[matchedTVGenreKey] : null;
+
+  // 1. Kick off standard multi-search in parallel
+  const multiSearchPromise = fetchTMDB<TMDBSearchResponse>(
     `/search/multi?query=${encodeURIComponent(query)}`,
     600
+  ).then((data) =>
+    (data.results || []).filter(
+      (item) => item.media_type === 'movie' || item.media_type === 'tv'
+    )
   );
-  return (data.results || []).filter(
-    (item) => item.media_type === 'movie' || item.media_type === 'tv'
-  );
+
+  // 2. Fetch genre items in parallel if matched
+  let genreResults: TMDBSearchResult[] = [];
+  if (movieGenreId || tvGenreId) {
+    try {
+      const fetchPromises: Promise<void>[] = [];
+
+      if (movieGenreId) {
+        fetchPromises.push(
+          getMoviesByGenre(movieGenreId).then((movies) => {
+            movies.forEach((m) => {
+              genreResults.push({
+                id: m.id,
+                media_type: 'movie',
+                title: m.title,
+                overview: m.overview,
+                poster_path: m.poster_path,
+                backdrop_path: m.backdrop_path,
+                release_date: m.release_date,
+                vote_average: m.vote_average,
+                genre_ids: m.genre_ids,
+              });
+            });
+          })
+        );
+      }
+
+      if (tvGenreId) {
+        fetchPromises.push(
+          getTVShowsByGenre(tvGenreId).then((shows) => {
+            shows.forEach((s) => {
+              genreResults.push({
+                id: s.id,
+                media_type: 'tv',
+                name: s.name,
+                overview: s.overview,
+                poster_path: s.poster_path,
+                backdrop_path: s.backdrop_path,
+                first_air_date: s.first_air_date,
+                vote_average: s.vote_average,
+                genre_ids: s.genre_ids,
+              });
+            });
+          })
+        );
+      }
+
+      await Promise.all(fetchPromises);
+      // Sort the genre results by score/rating
+      genreResults.sort((a, b) => b.vote_average - a.vote_average);
+    } catch (e) {
+      console.error('Failed to fetch genre search results:', e);
+    }
+  }
+
+  // 3. Await standard results
+  const multiResults = await multiSearchPromise;
+
+  // 4. Merge and deduplicate
+  const combined = [...genreResults, ...multiResults];
+  const seen = new Set<string>();
+  const deduplicated = combined.filter((item) => {
+    const key = `${item.media_type}-${item.id}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+
+  return deduplicated;
 }
 
 // Discover
@@ -350,5 +483,37 @@ export const getPopularTV = cache(async (): Promise<TMDBTVShow[]> => {
   return data.results;
 });
 
+// Get TV Season Details
+export const getTVSeasonDetail = cache(async (tvId: number, seasonNumber: number): Promise<any> => {
+  return fetchTMDB<any>(
+    `/tv/${tvId}/season/${seasonNumber}`,
+    3600
+  );
+});
+
+// Get Collection Details
+export const getCollectionDetail = cache(async (collectionId: number): Promise<any> => {
+  return fetchTMDB<any>(
+    `/collection/${collectionId}`,
+    3600
+  );
+});
+
 // Export image helper
 export { getTMDBImageUrl };
+
+export async function findByImdbId(imdbId: string): Promise<{
+  movie_results: TMDBMovie[];
+  tv_results: TMDBTVShow[];
+} | null> {
+  try {
+    return await fetchTMDB<{
+      movie_results: TMDBMovie[];
+      tv_results: TMDBTVShow[];
+    }>(`/find/${imdbId}?external_source=imdb_id`);
+  } catch (error) {
+    console.error('TMDB findByImdbId error:', error);
+    return null;
+  }
+}
+

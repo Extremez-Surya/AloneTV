@@ -6,20 +6,13 @@ const STREAM_SOURCES: Record<string, (id: string, season?: number, episode?: num
     season ? `https://screenscape.me/embed/tv/${id}/${season}/${episode}?autoplay=0&controls=1&theme=dark&quality=auto&subtitle=en`
            : `https://screenscape.me/embed/movie/${id}?autoplay=0&controls=1&theme=dark&quality=auto&subtitle=en`,
 
-  // Primary sources
-  'vidsrc': (id, season, episode) =>
-    season ? `https://vidsrc.in/embed/tv/${id}/${season}/${episode}`
-           : `https://vidsrc.in/embed/movie/${id}`,
+  'vidlink': (id, season, episode) =>
+    season ? `https://vidlink.pro/tv/${id}/${season}/${episode}`
+           : `https://vidlink.pro/movie/${id}`,
 
-  'vidplay': (id, season, episode) =>
-    season ? `https://vidplay.online/embed/${id}?season=${season}&episode=${episode}`
-           : `https://vidplay.online/embed/${id}`,
-
-  'moviesapi': (id) => `https://moviesapi.club/movie/${id}`,
-
-  'superembed': (id, season, episode) =>
-    season ? `https://superembed.net/?tmdb=${id}&tmdb_type=tv&season=${season}&episode=${episode}`
-           : `https://superembed.net/?tmdb=${id}&tmdb_type=movie`,
+  'vidking': (id, season, episode) =>
+    season ? `https://www.vidking.net/embed/tv/${id}/${season}/${episode}`
+           : `https://www.vidking.net/embed/movie/${id}`,
 };
 
 export async function GET(request: NextRequest) {

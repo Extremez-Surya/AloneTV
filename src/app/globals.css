@@ -1,24 +1,66 @@
 @import "tailwindcss";
 
 :root {
-  /* CineVibez Cinematic Dark Theme */
-  --bg-primary: #050505;
-  --bg-secondary: #0D0D0D;
-  --bg-card: #111111;
-  --accent-purple: #7C3AED;
-  --accent-teal: #0D9488;
+  /* Premium Dark Theme by default (Netflix-like) */
+  --bg-primary: #050508;
+  --bg-secondary: #0c0c10;
+  --bg-card: #121216;
+  --accent-purple: #8B5CF6;
+  --accent-teal: #14B8A6;
   --text-primary: #F9FAFB;
-  --text-muted: #6B7280;
+  --text-muted: #9CA3AF;
   --border: rgba(255, 255, 255, 0.08);
 
   /* Spacing & Sizing */
-  --navbar-height: 72px;
+  --navbar-height: 64px;
   --content-max-width: 1400px;
 
   /* Effects */
-  --glass-blur: blur(20px);
-  --card-hover-scale: scale(1.05);
-  --transition-slow: 600ms ease;
+  --glass-blur: blur(24px);
+  --card-hover-scale: scale(1.04);
+  --transition-slow: 400ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Stacked Shadows */
+  --shadow-level-1: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-level-2: 0px 4px 6px -1px rgba(0, 0, 0, 0.5), 0px 2px 4px -1px rgba(0, 0, 0, 0.5);
+  --shadow-level-3: 0px 10px 15px -3px rgba(0, 0, 0, 0.6), 0px 4px 6px -2px rgba(0, 0, 0, 0.6);
+  --shadow-level-4: 0px 20px 25px -5px rgba(0, 0, 0, 0.7), 0px 10px 10px -5px rgba(0, 0, 0, 0.7);
+  --shadow-level-5: 0px 25px 50px -12px rgba(0, 0, 0, 0.8);
+}
+
+.theme-light {
+  --bg-primary: #fafafa;
+  --bg-secondary: #f5f5f5;
+  --bg-card: #ffffff;
+  --accent-purple: #7928ca;
+  --accent-teal: #50e3c2;
+  --text-primary: #171717;
+  --text-muted: #4d4d4d;
+  --border: #ebebeb;
+
+  --shadow-level-1: 0 0 0 1px rgba(0, 0, 0, 0.05);
+  --shadow-level-2: 0px 1px 1px rgba(0, 0, 0, 0.05), 0px 2px 2px rgba(0, 0, 0, 0.05), 0px 0px 0px 1px rgba(0, 0, 0, 0.03) inset;
+  --shadow-level-3: 0px 2px 2px rgba(0, 0, 0, 0.06), 0px 8px 8px -8px rgba(0, 0, 0, 0.06), 0px 0px 0px 1px rgba(0, 0, 0, 0.04) inset;
+  --shadow-level-4: 0px 2px 2px rgba(0, 0, 0, 0.05), 0px 8px 16px -4px rgba(0, 0, 0, 0.08), 0px 0px 0px 1px rgba(0, 0, 0, 0.04) inset;
+  --shadow-level-5: 0px 1px 1px rgba(0, 0, 0, 0.02), 0px 8px 16px -4px rgba(0, 0, 0, 0.06), 0px 24px 32px -8px rgba(0, 0, 0, 0.1), 0px 0px 0px 1px rgba(0, 0, 0, 0.05) inset;
+}
+
+/* outline ranking numbers (Netflix style) */
+.text-outline {
+  color: var(--bg-primary);
+  -webkit-text-stroke: 2.5px rgba(255, 255, 255, 0.28);
+  paint-order: stroke fill;
+}
+
+.theme-dark {
+  --bg-primary: #050508;
+  --bg-secondary: #0c0c10;
+  --bg-card: #121216;
+  --accent-purple: #7C3AED;
+  --accent-teal: #0D9488;
+  --text-primary: #F9FAFB;
+  --text-muted: #9CA3AF;
+  --border: rgba(255, 255, 255, 0.08);
 }
 
 @theme inline {
@@ -30,12 +72,21 @@
   --color-text-primary: var(--text-primary);
   --color-text-muted: var(--text-muted);
   --color-border: var(--border);
-  --font-sans: var(--font-inter);
+  
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-mono), monospace;
+
+  --shadow-level-1: var(--shadow-level-1);
+  --shadow-level-2: var(--shadow-level-2);
+  --shadow-level-3: var(--shadow-level-3);
+  --shadow-level-4: var(--shadow-level-4);
+  --shadow-level-5: var(--shadow-level-5);
 }
 
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--accent-purple) var(--bg-secondary);
+  box-sizing: border-box;
 }
 
 *::-webkit-scrollbar {
@@ -58,22 +109,28 @@
 
 html {
   scroll-behavior: smooth;
+  background-color: var(--bg-primary);
 }
 
 body {
-  background: var(--bg-primary);
+  background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-inter), system-ui, sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background-color var(--transition-slow), color var(--transition-slow);
 }
 
 /* Glassmorphism Effect */
 .glass {
-  background: rgba(17, 17, 17, 0.7);
+  background: rgba(255, 255, 255, 0.75);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border);
+}
+
+.theme-dark .glass {
+  background: rgba(17, 17, 17, 0.75);
 }
 
 /* Gradient Overlays */
@@ -88,7 +145,7 @@ body {
 
 /* Card Hover Animation */
 .card-hover {
-  transition: transform var(--transition-slow);
+  transition: transform var(--transition-slow), box-shadow var(--transition-slow);
 }
 
 .card-hover:hover {
@@ -113,7 +170,7 @@ body {
 
 .skeleton {
   animation: skeleton-pulse 1.5s ease-in-out infinite;
-  background: var(--bg-card);
+  background: var(--bg-secondary);
 }
 
 /* Fade In Animation */
@@ -142,36 +199,38 @@ body {
 }
 
 .video-js .vjs-big-play-button {
-  background-color: var(--accent-purple);
-  border: none;
-  border-radius: 50%;
-  width: 80px;
-  height: 80px;
-  line-height: 80px;
-  font-size: 40px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  background-color: var(--accent-purple) !important;
+  border: none !important;
+  border-radius: 50% !important;
+  width: 72px !important;
+  height: 72px !important;
+  line-height: 72px !important;
+  font-size: 36px !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  box-shadow: 0 8px 24px rgba(121, 40, 202, 0.4) !important;
 }
 
 .video-js .vjs-control-bar {
-  background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+  background: linear-gradient(to top, rgba(0,0,0,0.9), transparent) !important;
 }
 
 .video-js .vjs-play-progress {
-  background-color: var(--accent-purple);
+  background-color: var(--accent-purple) !important;
 }
 
 /* Focus States */
 button:focus-visible,
 a:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--accent-purple);
   outline-offset: 2px;
 }
 
 /* Selection */
 ::selection {
-  background: var(--accent-purple);
-  color: var(--text-primary);
+  background: var(--text-primary);
+  color: var(--bg-card);
 }

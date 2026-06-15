@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 
 interface SearchResult {
-  id: number;
+  id: number | string;
   title: string;
   name?: string;
   poster_path: string | null;
@@ -94,6 +94,7 @@ export default function SearchBar() {
 
   const getImageUrl = (path: string | null) => {
     if (!path) return null;
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
     return `https://image.tmdb.org/t/p/w185${path}`;
   };
 

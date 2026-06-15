@@ -18,60 +18,101 @@ export interface VideoSource {
   buildUrl?: (language: AudioLanguage) => string;
 }
 
+export function attachBuildUrl(source: Omit<VideoSource, 'buildUrl'> & { name: string; url: string }): VideoSource {
+  return {
+    ...source,
+    buildUrl: (language: AudioLanguage) => {
+      // If the source explicitly lists languages and doesn't include the requested one, return original
+      if (source.languages && !source.languages.includes(language)) return source.url;
+
+      const code = AUDIO_LANGUAGE_CODE_MAP[language] || 'en';
+      const providerName = source.name;
+
+      // Special ScreenScape mapping (both subtitles and direct embeds)
+      if (providerName === 'ScreenScape') {
+        try {
+          const u = new URL(source.url);
+          u.searchParams.set('subtitle', code);
+          return u.toString();
+        } catch {
+          return source.url;
+        }
+      }
+
+      try {
+        const u = new URL(source.url);
+        
+        if (providerName.startsWith('VidLink Anime')) {
+          try {
+            const u = new URL(source.url);
+            const pathname = u.pathname;
+            const segments = pathname.split('/');
+            const subOrDub = language === 'Japanese' ? 'sub' : 'dub';
+            if (segments.length >= 5) {
+              segments[segments.length - 1] = subOrDub;
+            }
+            u.pathname = segments.join('/');
+            u.searchParams.set('fallback', 'true');
+            return u.toString();
+          } catch {
+            return source.url;
+          }
+        } else if (providerName.startsWith('VidLink')) {
+          // VidLink parses audioLang parameter (e.g. &audioLang=Hindi) for audio track
+          if (language !== 'English') {
+            u.searchParams.set('audioLang', language);
+          } else {
+            u.searchParams.delete('audioLang');
+          }
+          // Also set sub_lang for subtitle track selection
+          u.searchParams.set('sub_lang', code);
+        } else if (providerName.startsWith('VidKing')) {
+          // VidKing handles &lang=hi &sub=hi &audio=hi
+          u.searchParams.set('lang', code);
+          u.searchParams.set('sub', code);
+          u.searchParams.set('audio', code);
+        } else if (providerName.startsWith('VidPlay')) {
+          u.searchParams.set('lang', code);
+          u.searchParams.set('sub_lang', code);
+        } else if (providerName.startsWith('AutoEmbed')) {
+          u.searchParams.set('lang', code);
+          u.searchParams.set('audio', code);
+        } else if (providerName.startsWith('MoviesAPI')) {
+          u.searchParams.set('lang', code);
+          u.searchParams.set('language', code);
+        } else {
+          // Standard fallback: try multiple query parameters for audio and subtitles
+          u.searchParams.set('lang', code);
+          u.searchParams.set('subtitle', code);
+          u.searchParams.set('audioLang', language);
+        }
+        
+        return u.toString();
+      } catch {
+        const sep = source.url.includes('?') ? '&' : '?';
+        return `${source.url}${sep}lang=${code}&subtitle=${code}&audioLang=${language}`;
+      }
+    }
+  };
+}
+
 function createSource(
   name: string,
   url: string,
   quality = 'auto',
   flags: Omit<VideoSource, 'name' | 'url' | 'quality' | 'type'> = {},
 ): VideoSource {
-  const source: VideoSource = {
+  const source = {
     name,
     url,
     quality,
-    type: 'iframe',
+    type: 'iframe' as const,
     ...flags,
   };
-
-  // Default buildUrl: if the source advertises support for the language, try common query params
-  if (!source.buildUrl) {
-    source.buildUrl = (language: AudioLanguage) => {
-      // If the source explicitly lists languages and doesn't include the requested one, return original
-      if (source.languages && !source.languages.includes(language)) return source.url;
-
-      const code = SCREENSCAPE_SUBTITLE_MAP[language] || 'en';
-
-      // If URL already contains a subtitle/lang param, replace it; otherwise, try appending common keys
-      const tryAppend = (base: string, key: string) => {
-        try {
-          const u = new URL(base);
-          u.searchParams.set(key, code);
-          return u.toString();
-        } catch {
-          // Fallback for non-absolute URLs: naive append
-          const sep = base.includes('?') ? '&' : '?';
-          return `${base}${sep}${key}=${code}`;
-        }
-      };
-
-      // Prefer subtitle param used by screenscape/embed providers
-      let candidate = tryAppend(source.url, 'subtitle');
-      if (candidate !== source.url) return candidate;
-
-      candidate = tryAppend(source.url, 'lang');
-      if (candidate !== source.url) return candidate;
-
-      candidate = tryAppend(source.url, 'language');
-      if (candidate !== source.url) return candidate;
-
-      // As last resort, return original URL
-      return source.url;
-    };
-  }
-
-  return source;
+  return attachBuildUrl(source);
 }
 
-const SCREENSCAPE_SUBTITLE_MAP: Record<AudioLanguage, string> = {
+const AUDIO_LANGUAGE_CODE_MAP: Record<AudioLanguage, string> = {
   English: 'en',
   Hindi: 'hi',
   Tamil: 'ta',
@@ -101,12 +142,15 @@ function buildScreenScapeUrl(
   season?: number,
   episode?: number,
 ): string {
-  const subtitle = SCREENSCAPE_SUBTITLE_MAP[language] || 'en';
-  const baseUrl = mediaType === 'tv'
-    ? `https://screenscape.me/embed/tv/${id}/${season ?? 1}/${episode ?? 1}`
-    : `https://screenscape.me/embed/movie/${id}`;
-
-  return `${baseUrl}?autoplay=0&controls=1&theme=dark&quality=auto&subtitle=${subtitle}`;
+  const subtitle = AUDIO_LANGUAGE_CODE_MAP[language] || 'en';
+  const baseUrl = 'https://screenscape.me/embed';
+  const idParam = id.startsWith('tt') ? `imdb=${id}` : `tmdb=${id}`;
+  
+  if (mediaType === 'tv') {
+    return `${baseUrl}?${idParam}&type=tv&s=${season ?? 1}&e=${episode ?? 1}&autoplay=0&controls=1&theme=dark&quality=auto&subtitle=${subtitle}`;
+  } else {
+    return `${baseUrl}?${idParam}&type=movie&autoplay=0&controls=1&theme=dark&quality=auto&subtitle=${subtitle}`;
+  }
 }
 
 function createScreenScapeSource(
@@ -132,27 +176,7 @@ interface SourceOptions {
   includeScreenScape?: boolean;
 }
 
-/**
- * Get supported languages for a provider
- * Most providers support original + select dubs
- */
-function getProviderLanguages(providerName: string): string[] {
-  const languageMap: Record<string, string[]> = {
-    'VidLink': ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam'],
-    'VidLink 2': ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada'],
-    'VidKing': ['English', 'Hindi', 'Spanish'],
-    '2Embed': ['English'],
-    'Vidsrc': ['English'],
-    'Movies7': ['English', 'Hindi'],
-    'VidPlay': ['English', 'Hindi', 'Tamil'],
-    'AutoEmbed': ['English', 'Spanish', 'Portuguese'],
-    'SuperEmbed': ['English'],
-    'MultiEmbed': ['English'],
-    'MoviesAPI': ['English', 'Hindi'],
-  };
 
-  return languageMap[providerName] || ['English'];
-}
 
 /**
  * Get working video sources for movies
@@ -178,65 +202,8 @@ export function getMovieSources(tmdbId: string, options: SourceOptions = {}): Vi
       'auto',
       { recommended: true, fast: true, resumable: true, languages: ['English', 'Hindi', 'Spanish'] },
     ),
-    createSource('2Embed', `https://www.2embed.cc/embed/${tmdbId}`, '1080p', {
-      recommended: true,
-      fast: true,
-      languages: ['English'],
-    }),
-    createSource('Vidsrc', `https://vidsrc.cc/embed/${tmdbId}`, '1080p', {
-      recommended: true,
-      fast: true,
-      ads: true,
-      languages: ['English'],
-    }),
-    createSource('Movies7', `https://movies7.to/watch/${tmdbId}`, '720p', {
-      fast: true,
-      ads: true,
-      languages: ['English', 'Hindi'],
-    }),
-    createSource('VidPlay', `https://vidplay.online/embed/${tmdbId}`, '1080p', {
-      fast: true,
-      ads: true,
-      resumable: true,
-      languages: ['English', 'Hindi', 'Tamil'],
-    }),
-    createSource('AutoEmbed', `https://autoembed.to/movie/tmdb/${tmdbId}`, 'auto', {
+    createSource('AutoEmbed', tmdbId.startsWith('tt') ? `https://autoembed.to/movie/imdb/${tmdbId}` : `https://autoembed.to/movie/tmdb/${tmdbId}`, 'auto', {
       languages: ['English', 'Spanish', 'Portuguese'],
-    }),
-    createSource(
-      'SuperEmbed',
-      `https://multiembed.mov/directstream.php?video_id=${tmdbId}&tmdb=1`,
-      'auto',
-      { fast: true, ads: true, languages: ['English'] },
-    ),
-    createSource('MultiEmbed', `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`, 'auto', {
-      languages: ['English'],
-    }),
-    createSource('VidSrc 1', `https://vidsrc.xyz/embed/movie/${tmdbId}`, '1080p', {
-      ads: true,
-      languages: ['English'],
-    }),
-    createSource('VidSrc 2', `https://vidsrc.to/embed/movie/${tmdbId}`, '1080p', {
-      ads: true,
-      languages: ['English'],
-    }),
-    createSource('VidSrc 3', `https://vidsrc.icu/embed/movie/${tmdbId}`, '1080p', {
-      ads: true,
-      languages: ['English'],
-    }),
-    createSource('VidSrc 4', `https://vidsrc.cc/v2/embed/movie/${tmdbId}?autoPlay=false`, '1080p', {
-      ads: true,
-      languages: ['English'],
-    }),
-    createSource('VidSrc 5', `https://vidsrc.cc/v3/embed/movie/${tmdbId}?autoPlay=false`, '1080p', {
-      recommended: true,
-      fast: true,
-      ads: true,
-      languages: ['English'],
-    }),
-    createSource('MoviesAPI', `https://moviesapi.club/movie/${tmdbId}`, 'auto', {
-      ads: true,
-      languages: ['English', 'Hindi'],
     }),
   ];
 
@@ -270,65 +237,8 @@ export function getTVSources(tmdbId: string, season: number, episode: number, op
       'auto',
       { recommended: true, fast: true, resumable: true, languages: ['English', 'Hindi', 'Spanish'] },
     ),
-    createSource('2Embed', `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`, '1080p', {
-      recommended: true,
-      fast: true,
-      languages: ['English'],
-    }),
-    createSource('Vidsrc', `https://vidsrc.cc/embed/tv/${tmdbId}/${season}/${episode}`, '1080p', {
-      recommended: true,
-      fast: true,
-      ads: true,
-      languages: ['English'],
-    }),
-    createSource('Movies7', `https://movies7.to/watch-tv/${tmdbId}-${season}-${episode}`, '720p', {
-      fast: true,
-      ads: true,
-      languages: ['English', 'Hindi'],
-    }),
-    createSource('VidPlay', `https://vidplay.online/embed/${tmdbId}?season=${season}&episode=${episode}`, '1080p', {
-      fast: true,
-      ads: true,
-      resumable: true,
-      languages: ['English', 'Hindi', 'Tamil'],
-    }),
-    createSource('AutoEmbed', `https://autoembed.to/series/tmdb/${tmdbId}/${season}/${episode}`, 'auto', {
+    createSource('AutoEmbed', tmdbId.startsWith('tt') ? `https://autoembed.to/series/imdb/${tmdbId}/${season}/${episode}` : `https://autoembed.to/series/tmdb/${tmdbId}/${season}/${episode}`, 'auto', {
       languages: ['English', 'Spanish', 'Portuguese'],
-    }),
-    createSource(
-      'SuperEmbed',
-      `https://multiembed.mov/directstream.php?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`,
-      'auto',
-      { fast: true, ads: true, languages: ['English'] },
-    ),
-    createSource('MultiEmbed', `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`, 'auto', {
-      languages: ['English'],
-    }),
-    createSource('VidSrc 1', `https://vidsrc.xyz/embed/tv/${tmdbId}/${season}/${episode}`, '1080p', {
-      ads: true,
-      languages: ['English'],
-    }),
-    createSource('VidSrc 2', `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`, '1080p', {
-      ads: true,
-      languages: ['English'],
-    }),
-    createSource('VidSrc 3', `https://vidsrc.icu/embed/tv/${tmdbId}/${season}/${episode}`, '1080p', {
-      ads: true,
-      languages: ['English'],
-    }),
-    createSource('VidSrc 4', `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}?autoPlay=false`, '1080p', {
-      ads: true,
-      languages: ['English'],
-    }),
-    createSource('VidSrc 5', `https://vidsrc.cc/v3/embed/tv/${tmdbId}/${season}/${episode}?autoPlay=false`, '1080p', {
-      recommended: true,
-      fast: true,
-      ads: true,
-      languages: ['English'],
-    }),
-    createSource('MoviesAPI', `https://moviesapi.club/tv/${tmdbId}-${season}-${episode}`, 'auto', {
-      ads: true,
-      languages: ['English', 'Hindi'],
     }),
   ];
 
@@ -365,7 +275,7 @@ export async function fetchVideoSources(
       const data = await res.json();
 
       if (data.sources && Array.isArray(data.sources) && data.sources.length > 0) {
-        return data.sources.map((source: any) => ({
+        return data.sources.map((source: any) => attachBuildUrl({
           name: source.name || 'Source',
           url: source.url,
           quality: source.quality || 'auto',
@@ -380,10 +290,10 @@ export async function fetchVideoSources(
     }
 
     // Fallback to direct source generation if API fails
-    return getFallbackSources(type, id, season, episode, { includeScreenScape: false });
+    return getFallbackSources(type, id, season, episode, { includeScreenScape: true });
   } catch (error) {
     console.error('Failed to fetch video sources:', error);
-    return getFallbackSources(type, id, season, episode, { includeScreenScape: false });
+    return getFallbackSources(type, id, season, episode, { includeScreenScape: true });
   }
 }
 
@@ -398,7 +308,103 @@ export function getFallbackSources(
   options: SourceOptions = {}
 ): VideoSource[] {
   if (type === 'anime') {
-    return [createSource('AutoEmbed Anime', `https://autoembed.to/anime/${id}`)];
+    const ep = episode ?? 1;
+    const sources: VideoSource[] = [];
+
+    // 1. ScreenScrape (Series / TV)
+    if (options.includeScreenScape !== false) {
+      const idParam = id.startsWith('tt') ? `imdb=${id}` : `tmdb=${id}`;
+      sources.push({
+        name: 'ScreenScape Anime',
+        url: `https://screenscape.me/embed?${idParam}&type=tv&s=1&e=${ep}&autoplay=0&controls=1&theme=dark&quality=auto`,
+        quality: 'auto',
+        type: 'iframe',
+        recommended: true,
+        fast: true,
+        resumable: true,
+        languages: [...SUPPORTED_LANGUAGES],
+        buildUrl: (language: AudioLanguage) => {
+          const subtitle = AUDIO_LANGUAGE_CODE_MAP[language] || 'en';
+          return `https://screenscape.me/embed?${idParam}&type=tv&s=1&e=${ep}&autoplay=0&controls=1&theme=dark&quality=auto&subtitle=${subtitle}`;
+        }
+      });
+    }
+
+    // 2. VidLink Anime Series
+    sources.push(
+      createSource(
+        'VidLink Anime',
+        `https://vidlink.pro/tv/${id}/1/${ep}?player=jw&primaryColor=f5a524&secondaryColor=a2a2a2&iconColor=eefdec&autoplay=false`,
+        'auto',
+        { recommended: true, fast: true, ads: true, resumable: true, languages: ['English', 'Japanese', 'Hindi', 'Tamil', 'Telugu'] }
+      )
+    );
+
+    // 3. VidLink Anime 2
+    sources.push(
+      createSource(
+        'VidLink Anime 2',
+        `https://vidlink.pro/tv/${id}/1/${ep}?primaryColor=f5a524&autoplay=false`,
+        'auto',
+        { recommended: true, fast: true, ads: true, resumable: true, languages: ['English', 'Japanese', 'Hindi'] }
+      )
+    );
+
+    // 4. VidKing Anime
+    sources.push(
+      createSource(
+        'VidKing Anime',
+        `https://www.vidking.net/embed/tv/${id}/1/${ep}?color=f5a524&autoplay=false`,
+        'auto',
+        { recommended: true, fast: true, resumable: true, languages: ['English', 'Japanese', 'Hindi'] }
+      )
+    );
+
+    // 5. AutoEmbed Anime
+    sources.push(
+      createSource(
+        'AutoEmbed Anime',
+        id.startsWith('tt') ? `https://autoembed.to/series/imdb/${id}/1/${ep}` : `https://autoembed.to/series/tmdb/${id}/1/${ep}`,
+        'auto',
+        { languages: ['English', 'Japanese'] }
+      )
+    );
+
+    // Append Movie fallback sources if it's episode 1
+    if (ep === 1) {
+      if (options.includeScreenScape !== false) {
+        const idParam = id.startsWith('tt') ? `imdb=${id}` : `tmdb=${id}`;
+        sources.push({
+          name: 'ScreenScape Movie',
+          url: `https://screenscape.me/embed?${idParam}&type=movie&autoplay=0&controls=1&theme=dark&quality=auto`,
+          quality: 'auto',
+          type: 'iframe',
+          languages: [...SUPPORTED_LANGUAGES],
+          buildUrl: (language: AudioLanguage) => {
+            const subtitle = AUDIO_LANGUAGE_CODE_MAP[language] || 'en';
+            return `https://screenscape.me/embed?${idParam}&type=movie&autoplay=0&controls=1&theme=dark&quality=auto&subtitle=${subtitle}`;
+          }
+        });
+      }
+      sources.push(
+        createSource(
+          'VidLink Movie',
+          `https://vidlink.pro/movie/${id}?player=jw&primaryColor=f5a524&secondaryColor=a2a2a2&iconColor=eefdec&autoplay=false`,
+          'auto',
+          { recommended: true, fast: true, ads: true, resumable: true, languages: ['English', 'Japanese', 'Hindi', 'Tamil', 'Telugu'] }
+        )
+      );
+      sources.push(
+        createSource(
+          'VidKing Movie',
+          `https://www.vidking.net/embed/movie/${id}?color=f5a524&autoplay=false`,
+          'auto',
+          { recommended: true, fast: true, resumable: true, languages: ['English', 'Japanese', 'Hindi'] }
+        )
+      );
+    }
+
+    return sources;
   } else if (type === 'tv' && season && episode) {
     return getTVSources(id, season, episode, options);
   } else {
