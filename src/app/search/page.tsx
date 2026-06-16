@@ -43,10 +43,14 @@ function SearchContent() {
 
       setLoading(true);
       try {
-        const [tmdbResults, jikanResults] = await Promise.all([
-          searchMulti(query),
+        const [searchRes, jikanResults] = await Promise.all([
+          fetch(`/api/search?q=${encodeURIComponent(query)}`),
           searchAnime(query),
         ]);
+        
+        const searchData = searchRes.ok ? await searchRes.json() : { results: [] };
+        const tmdbResults = searchData.results || [];
+        
         setResults(tmdbResults);
         setAnimeResults(jikanResults);
       } catch (error) {
@@ -143,12 +147,21 @@ function SearchContent() {
                 >
                   <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-3 bg-bg-secondary border border-border/40">
                     {(result.poster_path || result.backdrop_path) && (
-                      <Image
-                        src={getTMDBImageUrl(result.poster_path || result.backdrop_path, 'w342') || ''}
-                        alt={result.title || result.name}
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
+                      (result.poster_path || result.backdrop_path).startsWith('http') ? (
+                        <img
+                          src={result.poster_path || result.backdrop_path}
+                          alt={result.title || result.name}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <Image
+                          src={getTMDBImageUrl(result.poster_path || result.backdrop_path, 'w342') || ''}
+                          alt={result.title || result.name}
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          unoptimized
+                        />
+                      )
                     )}
                   </div>
                   <h3 className="text-sm font-semibold text-text-primary truncate group-hover:text-accent-purple transition-colors">
