@@ -200,17 +200,41 @@ export default async function WatchPage({ params }: WatchPageProps) {
           const searchTitle = anime.title_english || anime.title || '';
           if (searchTitle) {
             const tmdbSearch = await searchMulti(searchTitle);
-            const matched = tmdbSearch.find(r => r.media_type === 'tv' || r.media_type === 'movie');
+            const isMalMovie = anime.type?.toLowerCase() === 'movie';
+            
+            // Prefer exact type match (movie vs tv series)
+            let matched = tmdbSearch.find(r => 
+              isMalMovie ? r.media_type === 'movie' : r.media_type === 'tv'
+            );
+            
+            // Fallback to any matching movie or tv if preferred type not found
+            if (!matched) {
+              matched = tmdbSearch.find(r => r.media_type === 'tv' || r.media_type === 'movie');
+            }
+
             if (matched) {
               tmdbId = matched.id;
-              // Re-fetch details using matched TMDB ID if found
-              const tv = await getTVShowDetail(tmdbId);
-              if (tv && tv.id) {
-                cast = tv.credits?.cast?.slice(0, 10) || [];
-                seasons = tv.seasons?.filter((s: any) => s.season_number > 0) || [];
-                imdbId = (tv as any).external_ids?.imdb_id || '';
-                const similarData = await getSimilarTVShows(tmdbId);
-                similar = similarData || [];
+              type = matched.media_type; // Update type to matched media type (tv or movie)
+
+              if (type === 'tv') {
+                // Re-fetch details using matched TMDB ID if found
+                const tv = await getTVShowDetail(tmdbId);
+                if (tv && tv.id) {
+                  cast = tv.credits?.cast?.slice(0, 10) || [];
+                  seasons = tv.seasons?.filter((s: any) => s.season_number > 0) || [];
+                  imdbId = (tv as any).external_ids?.imdb_id || '';
+                  const similarData = await getSimilarTVShows(tmdbId);
+                  similar = similarData || [];
+                }
+              } else if (type === 'movie') {
+                // Re-fetch movie details using matched TMDB Movie ID
+                const movie = await getMovieDetail(tmdbId);
+                if (movie && movie.id) {
+                  cast = movie.credits?.cast?.slice(0, 10) || [];
+                  imdbId = movie.imdb_id || '';
+                  const similarData = await getSimilarMovies(tmdbId);
+                  similar = similarData || [];
+                }
               }
             }
           }
