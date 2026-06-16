@@ -185,6 +185,18 @@ interface SourceOptions {
 export function getMovieSources(tmdbId: string, options: SourceOptions = {}): VideoSource[] {
   const sources = [
     createSource(
+      'VidSrc.xyz',
+      `https://vidsrc.xyz/embed/movie/${tmdbId}`,
+      'auto',
+      { recommended: true, fast: true, ads: true, resumable: true, languages: ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam'] }
+    ),
+    createSource(
+      'VidSrc.to',
+      `https://vidsrc.to/embed/movie/${tmdbId}`,
+      'auto',
+      { recommended: true, fast: true, ads: true, resumable: true, languages: ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam'] }
+    ),
+    createSource(
       'VidLink',
       `https://vidlink.pro/movie/${tmdbId}?player=jw&primaryColor=006fee&secondaryColor=a2a2a2&iconColor=eefdec&autoplay=false`,
       'auto',
@@ -208,7 +220,7 @@ export function getMovieSources(tmdbId: string, options: SourceOptions = {}): Vi
   ];
 
   if (options.includeScreenScape !== false) {
-    sources.unshift(createScreenScapeSource('movie', tmdbId));
+    sources.push(createScreenScapeSource('movie', tmdbId));
   }
 
   return sources;
@@ -219,6 +231,18 @@ export function getMovieSources(tmdbId: string, options: SourceOptions = {}): Vi
  */
 export function getTVSources(tmdbId: string, season: number, episode: number, options: SourceOptions = {}): VideoSource[] {
   const sources = [
+    createSource(
+      'VidSrc.xyz',
+      `https://vidsrc.xyz/embed/tv/${tmdbId}/${season}/${episode}`,
+      'auto',
+      { recommended: true, fast: true, ads: true, resumable: true, languages: ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam'] }
+    ),
+    createSource(
+      'VidSrc.to',
+      `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`,
+      'auto',
+      { recommended: true, fast: true, ads: true, resumable: true, languages: ['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam'] }
+    ),
     createSource(
       'VidLink',
       `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?player=jw&primaryColor=f5a524&secondaryColor=a2a2a2&iconColor=eefdec&autoplay=false`,
@@ -243,7 +267,7 @@ export function getTVSources(tmdbId: string, season: number, episode: number, op
   ];
 
   if (options.includeScreenScape !== false) {
-    sources.unshift(createScreenScapeSource('tv', tmdbId, season, episode));
+    sources.push(createScreenScapeSource('tv', tmdbId, season, episode));
   }
 
   return sources;
