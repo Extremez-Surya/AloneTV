@@ -40,11 +40,20 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     siteName: "AloneTV",
+    images: [
+      {
+        url: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1200&auto=format&fit=crop&q=80",
+        width: 1200,
+        height: 630,
+        alt: "AloneTV 4K Cinematic Platform Preview",
+      }
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "AloneTV - Free 4K Streaming Platform",
     description: "Stream unlimited movies, TV shows, web series & anime in stunning 4K quality.",
+    images: ["https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1200&auto=format&fit=crop&q=80"],
   },
   robots: {
     index: true,

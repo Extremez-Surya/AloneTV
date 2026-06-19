@@ -24,6 +24,20 @@ interface VideoPlayerProps {
  * Video Player with iframe embeds and auto-switching
  */
 export default function VideoPlayer({ sources, title, backdropUrl, onNextEpisode, hasNextEpisode, cast = [] }: VideoPlayerProps) {
+  const getSourceDisplayName = (source: VideoSource, idx: number) => {
+    if (!source) return 'Server';
+    if (source.name === 'Preview (Official Trailer)') {
+      return source.name;
+    }
+    let serverNum = 1;
+    for (let i = 0; i < idx; i++) {
+      if (sources[i] && sources[i].name !== 'Preview (Official Trailer)') {
+        serverNum++;
+      }
+    }
+    return `Server ${serverNum}`;
+  };
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -545,7 +559,7 @@ export default function VideoPlayer({ sources, title, backdropUrl, onNextEpisode
           {isLoading && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/95 backdrop-blur-sm">
               <div className="w-16 h-16 border-4 border-accent-purple border-t-transparent rounded-full animate-spin mb-4" />
-              <p className="text-white font-semibold mb-2">Loading {currentSource?.name}...</p>
+              <p className="text-white font-semibold mb-2">Loading {currentSource ? getSourceDisplayName(currentSource, currentIndex) : ''}...</p>
               <p className="text-gray-400 text-sm">{title}</p>
               {autoSwitchCount > 0 && (
                 <p className="text-yellow-500 text-xs mt-2">
@@ -572,7 +586,7 @@ export default function VideoPlayer({ sources, title, backdropUrl, onNextEpisode
                 />
               </svg>
               <p className="text-white font-semibold mb-2">{errorMessage || 'Unable to load stream'}</p>
-              <p className="text-gray-400 text-sm mb-4">{currentSource?.name}</p>
+              <p className="text-gray-400 text-sm mb-4">{currentSource ? getSourceDisplayName(currentSource, currentIndex) : ''}</p>
               <div className="flex gap-3 flex-wrap justify-center">
                 <button
                   onClick={handleRetry}
@@ -696,7 +710,7 @@ export default function VideoPlayer({ sources, title, backdropUrl, onNextEpisode
                       : 'bg-white/10 text-gray-300 hover:bg-white/20'
                   }`}
                 >
-                  {source.name}
+                  {getSourceDisplayName(source, index)}
                   {source.quality !== 'auto' && (
                     <span className="ml-1 text-xs opacity-75">({source.quality})</span>
                   )}
