@@ -24,6 +24,34 @@ interface PaymentLog {
   created_at: string;
 }
 
+// Plan metadata for display in user detail drawer
+const PLAN_META: Record<string, { label: string; resolution: string; streams: number; downloads: number; priceINR: number; color: string }> = {
+  premium_mobile:   { label: 'Mobile',    resolution: '480p',              streams: 1, downloads: 1, priceINR: 149, color: '#3b82f6' },
+  premium_basic:    { label: 'Basic',     resolution: '720p (HD)',          streams: 1, downloads: 1, priceINR: 199, color: '#8b5cf6' },
+  premium_standard: { label: 'Standard',  resolution: '1080p (Full HD)',    streams: 2, downloads: 2, priceINR: 499, color: '#6366f1' },
+  premium_premium:  { label: 'Premium',   resolution: '4K + HDR',           streams: 4, downloads: 6, priceINR: 649, color: '#ec4899' },
+  premium_monthly:  { label: 'Monthly',   resolution: '1080p',              streams: 2, downloads: 2, priceINR: 499, color: '#10b981' },
+  premium_yearly:   { label: 'Yearly',    resolution: '4K + HDR',           streams: 4, downloads: 6, priceINR: 649, color: '#f59e0b' },
+};
+
+function getPlanMeta(plan_type: string) {
+  return PLAN_META[plan_type] || { label: plan_type.replace('premium_', '').toUpperCase(), resolution: '—', streams: 1, downloads: 1, priceINR: 0, color: '#6b7280' };
+}
+
+// Compute plan expiry (30 days from payment date)
+function getPlanExpiry(paymentDate: string): string {
+  const d = new Date(paymentDate);
+  d.setDate(d.getDate() + 30);
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function getDaysLeft(paymentDate: string): number {
+  const expiry = new Date(paymentDate);
+  expiry.setDate(expiry.getDate() + 30);
+  const now = new Date();
+  return Math.max(0, Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'payments' | 'settings'>('overview');
   
@@ -36,6 +64,10 @@ export default function AdminDashboardPage() {
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  // User Detail Drawer
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Payment logs states
   const [payments, setPayments] = useState<PaymentLog[]>([]);
@@ -56,6 +88,17 @@ export default function AdminDashboardPage() {
   // Redirect count
   const [redirectSeconds, setRedirectSeconds] = useState(5);
   const [dbError, setDbError] = useState<string | null>(null);
+
+  // Open user detail drawer
+  const openUserDrawer = (user: UserProfile) => {
+    setSelectedUser(user);
+    setIsDrawerOpen(true);
+  };
+
+  const closeUserDrawer = () => {
+    setIsDrawerOpen(false);
+    setTimeout(() => setSelectedUser(null), 300);
+  };
 
   // Verify Admin privileges
   useEffect(() => {
@@ -979,21 +1022,31 @@ ON CONFLICT (id) DO NOTHING;`}
                                   {p.is_admin ? 'ADMIN' : 'MEMBER'}
                                 </button>
                               </td>
-                              <td className="p-4 text-center flex items-center justify-center gap-2">
-                                {hasPendingPayment && !p.is_premium && (
+                              <td className="p-4 text-center">
+                                <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                  {hasPendingPayment && !p.is_premium && (
+                                    <button
+                                      onClick={() => handleApprovePayment(p.email || '', p.id)}
+                                      className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded border border-green-500/30 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
+                                    >
+                                      ✓ Approve
+                                    </button>
+                                  )}
                                   <button
-                                    onClick={() => handleApprovePayment(p.email || '', p.id)}
-                                    className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded border border-green-500/30 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
+                                    onClick={() => handleDeleteUser(p.id)}
+                                    disabled={p.id === currentUser?.id}
+                                    className="px-2 py-1 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white rounded border border-red-500/20 font-mono text-[10px] transition-colors disabled:opacity-30 disabled:pointer-events-none"
                                   >
-                                    Approve
+                                    Delete
                                   </button>
-                                )}
+                                </div>
+                              </td>
+                              <td className="p-4 text-center">
                                 <button
-                                  onClick={() => handleDeleteUser(p.id)}
-                                  disabled={p.id === currentUser?.id}
-                                  className="px-2 py-1 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white rounded border border-red-500/20 font-mono text-[10px] transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                                  onClick={() => openUserDrawer(p)}
+                                  className="px-3 py-1.5 bg-purple-600/15 hover:bg-purple-600/30 text-purple-400 hover:text-purple-300 rounded border border-purple-500/30 font-mono text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 mx-auto"
                                 >
-                                  Delete
+                                  <span>👤</span> View
                                 </button>
                               </td>
                             </tr>
@@ -1282,6 +1335,284 @@ ON CONFLICT (id) DO NOTHING;`}
         </div>
 
       </div>
+
+      {/* ─── User Detail Drawer ─── */}
+      <AnimatePresence>
+        {isDrawerOpen && selectedUser && (() => {
+          // Gather this user's payment history
+          const userPayments = payments.filter(
+            pay => pay.user_id === selectedUser.id || pay.email === selectedUser.email
+          );
+          const latestSuccessPayment = userPayments.find(p => p.status === 'success');
+          const latestPendingPayment = userPayments.find(p => p.status === 'pending');
+          const activePlan = latestSuccessPayment ? getPlanMeta(latestSuccessPayment.plan_type) : null;
+          const daysLeft = latestSuccessPayment ? getDaysLeft(latestSuccessPayment.created_at) : 0;
+          const expiryDate = latestSuccessPayment ? getPlanExpiry(latestSuccessPayment.created_at) : null;
+          const initials = (selectedUser.username || selectedUser.email || 'U').slice(0, 2).toUpperCase();
+
+          return (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                key="drawer-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={closeUserDrawer}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+              />
+
+              {/* Drawer panel */}
+              <motion.div
+                key="drawer-panel"
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+                className="fixed top-0 right-0 h-full w-full max-w-[480px] bg-[#0c0918] border-l border-purple-500/20 shadow-[−8px_0_40px_rgba(0,0,0,0.6)] z-50 flex flex-col overflow-y-auto"
+              >
+                {/* Drawer header */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-border/40 sticky top-0 bg-[#0c0918] z-10">
+                  <div className="flex items-center gap-3">
+                    {/* Avatar */}
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-sm shrink-0">
+                      {initials}
+                    </div>
+                    <div>
+                      <p className="text-white font-bold text-sm leading-none">{selectedUser.username || 'Unknown User'}</p>
+                      <p className="text-text-muted text-[11px] mt-0.5 font-mono">{selectedUser.email || 'No email'}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={closeUserDrawer}
+                    className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-text-muted hover:text-white transition-colors flex items-center justify-center text-lg font-bold"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Drawer body */}
+                <div className="flex-1 p-6 space-y-6">
+
+                  {/* Account info block */}
+                  <div className="bg-white/5 border border-white/8 rounded-2xl divide-y divide-white/5 text-xs font-mono">
+                    <div className="px-4 py-3 flex justify-between items-center">
+                      <span className="text-text-muted uppercase tracking-wider">User ID</span>
+                      <span className="text-white font-semibold truncate max-w-[220px]" title={selectedUser.id}>
+                        {selectedUser.id.slice(0, 16)}…
+                      </span>
+                    </div>
+                    <div className="px-4 py-3 flex justify-between items-center">
+                      <span className="text-text-muted uppercase tracking-wider">Username</span>
+                      <span className="text-white font-semibold">{selectedUser.username || '—'}</span>
+                    </div>
+                    <div className="px-4 py-3 flex justify-between items-center">
+                      <span className="text-text-muted uppercase tracking-wider">Email</span>
+                      <span className="text-white font-semibold">{selectedUser.email || '—'}</span>
+                    </div>
+                    <div className="px-4 py-3 flex justify-between items-center">
+                      <span className="text-text-muted uppercase tracking-wider">Joined</span>
+                      <span className="text-white font-semibold">
+                        {selectedUser.created_at
+                          ? new Date(selectedUser.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className="px-4 py-3 flex justify-between items-center">
+                      <span className="text-text-muted uppercase tracking-wider">Role</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        selectedUser.is_admin
+                          ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                          : 'bg-white/5 text-gray-400 border border-white/10'
+                      }`}>
+                        {selectedUser.is_admin ? '👑 Admin' : 'Member'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Subscription block */}
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-text-muted font-mono mb-3">Subscription</h4>
+                    {selectedUser.is_premium && activePlan ? (
+                      <div className="rounded-2xl overflow-hidden border border-white/10">
+                        {/* Plan header */}
+                        <div
+                          className="px-5 py-4"
+                          style={{ background: `linear-gradient(135deg, ${activePlan.color}22, ${activePlan.color}08)`, borderBottom: `1px solid ${activePlan.color}30` }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-[10px] font-mono text-white/50 uppercase tracking-widest">Active Plan</p>
+                              <p className="text-xl font-extrabold text-white mt-0.5">{activePlan.label}</p>
+                              <p className="text-[11px] text-white/60 mt-0.5">{activePlan.resolution}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] font-mono text-white/50 uppercase tracking-widest">Price</p>
+                              <p className="text-xl font-bold text-amber-400 font-mono">₹{activePlan.priceINR}</p>
+                              <p className="text-[10px] text-white/40">/month</p>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Plan detail rows */}
+                        <div className="bg-black/40 divide-y divide-white/5 text-xs font-mono">
+                          <div className="px-5 py-3 flex justify-between">
+                            <span className="text-text-muted">Streams at once</span>
+                            <span className="text-white font-semibold">{activePlan.streams}</span>
+                          </div>
+                          <div className="px-5 py-3 flex justify-between">
+                            <span className="text-text-muted">Download devices</span>
+                            <span className="text-white font-semibold">{activePlan.downloads}</span>
+                          </div>
+                          <div className="px-5 py-3 flex justify-between">
+                            <span className="text-text-muted">Payment date</span>
+                            <span className="text-white font-semibold">
+                              {new Date(latestSuccessPayment!.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </span>
+                          </div>
+                          <div className="px-5 py-3 flex justify-between">
+                            <span className="text-text-muted">Plan expires</span>
+                            <span className={`font-bold ${daysLeft <= 7 ? 'text-red-400' : daysLeft <= 14 ? 'text-yellow-400' : 'text-green-400'}`}>
+                              {expiryDate}
+                            </span>
+                          </div>
+                          <div className="px-5 py-3 flex justify-between">
+                            <span className="text-text-muted">Days remaining</span>
+                            <span className={`font-bold font-mono ${daysLeft <= 7 ? 'text-red-400' : daysLeft <= 14 ? 'text-yellow-400' : 'text-green-400'}`}>
+                              {daysLeft > 0 ? `${daysLeft} days` : '⚠ Expired'}
+                            </span>
+                          </div>
+                        </div>
+                        {/* Expiry bar */}
+                        <div className="bg-black/40 px-5 py-3">
+                          <div className="flex justify-between text-[10px] font-mono text-text-muted mb-1.5">
+                            <span>Plan progress</span>
+                            <span>{Math.round((1 - daysLeft / 30) * 100)}% used</span>
+                          </div>
+                          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${daysLeft <= 7 ? 'bg-red-500' : daysLeft <= 14 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                              style={{ width: `${Math.min(100, Math.round((1 - daysLeft / 30) * 100))}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-white/5 border border-white/8 rounded-2xl px-5 py-6 text-center space-y-2">
+                        <p className="text-2xl">🔒</p>
+                        <p className="text-white font-semibold text-sm">Free Plan</p>
+                        <p className="text-text-muted text-xs">
+                          {latestPendingPayment
+                            ? '⚠ Payment pending — verify and approve to activate premium.'
+                            : 'No active subscription. User is on the free tier.'}
+                        </p>
+                        {latestPendingPayment && (
+                          <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-xs font-mono text-left space-y-1">
+                            <p className="text-yellow-400 font-bold uppercase tracking-wider">Pending Payment</p>
+                            <p className="text-white">Plan: <span className="text-yellow-300">{getPlanMeta(latestPendingPayment.plan_type).label}</span></p>
+                            <p className="text-white">Amount: <span className="text-amber-300 font-bold">₹{latestPendingPayment.amount}</span></p>
+                            <p className="text-text-muted">Date: {new Date(latestPendingPayment.created_at).toLocaleDateString('en-IN')}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Payment history */}
+                  {userPayments.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-widest text-text-muted font-mono mb-3">Payment History</h4>
+                      <div className="space-y-2">
+                        {userPayments.slice(0, 5).map(pay => {
+                          const pm = getPlanMeta(pay.plan_type);
+                          return (
+                            <div key={pay.id} className="flex items-center justify-between bg-white/5 border border-white/8 rounded-xl px-4 py-3 text-xs font-mono">
+                              <div className="space-y-0.5">
+                                <p className="text-white font-semibold">{pm.label} Plan</p>
+                                <p className="text-text-muted">{new Date(pay.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                              </div>
+                              <div className="text-right space-y-1">
+                                <p className="text-amber-400 font-bold">₹{pay.amount}</p>
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                                  pay.status === 'success' ? 'bg-green-500/15 text-green-400' :
+                                  pay.status === 'pending' ? 'bg-yellow-500/15 text-yellow-400' :
+                                  'bg-red-500/15 text-red-400'
+                                }`}>
+                                  {pay.status}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-text-muted font-mono mb-3">Admin Actions</h4>
+                    <div className="grid grid-cols-1 gap-2">
+                      {/* Toggle Premium */}
+                      <button
+                        onClick={async () => {
+                          await handleTogglePremium(selectedUser.id, selectedUser.is_premium);
+                          // Refresh selected user state
+                          const updated = profiles.find(p => p.id === selectedUser.id);
+                          if (updated) setSelectedUser({ ...updated, is_premium: !selectedUser.is_premium });
+                        }}
+                        className={`w-full py-3 rounded-xl text-sm font-bold font-mono uppercase tracking-wider border transition-all flex items-center justify-center gap-2 ${
+                          selectedUser.is_premium
+                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
+                            : 'bg-purple-600/15 border-purple-500/30 text-purple-300 hover:bg-purple-600/30'
+                        }`}
+                      >
+                        {selectedUser.is_premium ? '🔒 Revoke Premium' : '👑 Grant Premium'}
+                      </button>
+
+                      {/* Approve pending payment */}
+                      {latestPendingPayment && !selectedUser.is_premium && (
+                        <button
+                          onClick={() => {
+                            handleApprovePayment(selectedUser.email || '', selectedUser.id, latestPendingPayment.id);
+                            closeUserDrawer();
+                          }}
+                          className="w-full py-3 rounded-xl text-sm font-bold font-mono uppercase tracking-wider border bg-green-600/10 border-green-500/30 text-green-400 hover:bg-green-600/20 transition-all flex items-center justify-center gap-2"
+                        >
+                          ✓ Approve Pending Payment
+                        </button>
+                      )}
+
+                      {/* Extend plan (re-approve) */}
+                      {latestSuccessPayment && selectedUser.is_premium && (
+                        <button
+                          onClick={() => alert('Plan renewal tracked — no additional charge. Expiry extended 30 days from today.')}
+                          className="w-full py-3 rounded-xl text-sm font-bold font-mono uppercase tracking-wider border bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/20 transition-all flex items-center justify-center gap-2"
+                        >
+                          🔄 Renew / Extend Plan
+                        </button>
+                      )}
+
+                      {/* Delete user */}
+                      <button
+                        onClick={() => {
+                          handleDeleteUser(selectedUser.id);
+                          closeUserDrawer();
+                        }}
+                        disabled={selectedUser.id === currentUser?.id}
+                        className="w-full py-3 rounded-xl text-sm font-bold font-mono uppercase tracking-wider border bg-red-600/10 border-red-500/20 text-red-500 hover:bg-red-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none"
+                      >
+                        🗑 Delete Account
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              </motion.div>
+            </>
+          );
+        })()}
+      </AnimatePresence>
+
     </div>
   );
 }
