@@ -718,47 +718,49 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Admin Mode Controls (Testing & RLS) */}
-                <div className="max-w-lg bg-bg-card border border-border p-6 rounded-2xl shadow-level-2 text-left space-y-4">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-white font-mono">Admin Authorization Panel</h3>
-                  <p className="text-xs text-text-muted leading-relaxed">
-                    Toggle your admin privileges to view or restrict dashboard access.
-                  </p>
-                  
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-purple-400">🛡️</span>
-                      <span className="text-xs font-semibold text-white font-mono">Admin Status</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const updated = await updateAdminStatus(!user.is_admin);
-                        if (updated) {
-                          setUser(prev => ({ ...prev, is_admin: Boolean(updated.is_admin) }));
-                          window.dispatchEvent(new Event('alonetv_user_changed'));
-                        }
-                      }}
-                      className={`px-3 py-1.5 rounded font-mono text-[10px] font-bold uppercase tracking-wider border transition-all ${
-                        user.is_admin
-                          ? 'bg-purple-500/10 border-purple-500/35 text-purple-400 font-bold'
-                          : 'bg-white/5 border-white/10 text-gray-500'
-                      }`}
-                    >
-                      {user.is_admin ? 'ENABLED' : 'DISABLED'}
-                    </button>
-                  </div>
-
-                  {user.is_admin && (
-                    <div className="pt-3.5 border-t border-white/5">
-                      <Link
-                        href="/admin"
-                        className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold font-mono uppercase tracking-wider block text-center shadow-lg shadow-purple-500/20 transition-colors"
+                {(user.email === 'theextremez2.0@gmail.com' || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('alonetv_user') || '{}').demo === true)) && (
+                  <div className="max-w-lg bg-bg-card border border-border p-6 rounded-2xl shadow-level-2 text-left space-y-4">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-white font-mono">Admin Authorization Panel</h3>
+                    <p className="text-xs text-text-muted leading-relaxed">
+                      Toggle your admin privileges to view or restrict dashboard access.
+                    </p>
+                    
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-400">🛡️</span>
+                        <span className="text-xs font-semibold text-white font-mono">Admin Status</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const updated = await updateAdminStatus(!user.is_admin);
+                          if (updated) {
+                            setUser(prev => ({ ...prev, is_admin: Boolean(updated.is_admin) }));
+                            window.dispatchEvent(new Event('alonetv_user_changed'));
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded font-mono text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                          user.is_admin
+                            ? 'bg-purple-500/10 border-purple-500/35 text-purple-400 font-bold'
+                            : 'bg-white/5 border-white/10 text-gray-500'
+                        }`}
                       >
-                        👑 Open Admin Control Center
-                      </Link>
+                        {user.is_admin ? 'ENABLED' : 'DISABLED'}
+                      </button>
                     </div>
-                  )}
-                </div>
+
+                    {user.is_admin && (
+                      <div className="pt-3.5 border-t border-white/5">
+                        <Link
+                          href="/admin"
+                          className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold font-mono uppercase tracking-wider block text-center shadow-lg shadow-purple-500/20 transition-colors"
+                        >
+                          👑 Open Admin Control Center
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Premium Membership details */}
                 <div className="max-w-lg bg-gradient-to-br from-[#130d2b] to-[#0a0715] rounded-2xl p-6 border border-purple-500/20 shadow-level-3 relative overflow-hidden">

@@ -5,20 +5,13 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     
-    // Check executing user
+    // Check executing user and verify permanent admin email
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify admin status
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || !profile.is_admin) {
+    if (user.email !== 'theextremez2.0@gmail.com') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -44,20 +37,13 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     
-    // Check executing user
+    // Check executing user and verify permanent admin email
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify admin status
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || !profile.is_admin) {
+    if (user.email !== 'theextremez2.0@gmail.com') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

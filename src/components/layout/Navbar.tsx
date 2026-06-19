@@ -46,7 +46,8 @@ export default function Navbar() {
       if (profile) {
         setIsLoggedIn(true);
         setIsPremium(Boolean(profile.is_premium));
-        setIsAdmin(Boolean(profile.is_admin));
+        const isUserAdmin = profile.demo ? Boolean(profile.is_admin) : (profile.email === 'theextremez2.0@gmail.com');
+        setIsAdmin(isUserAdmin);
       }
     } catch {
       // ignore
@@ -57,7 +58,8 @@ export default function Navbar() {
       if (profile) {
         setIsLoggedIn(true);
         setIsPremium(Boolean(profile.is_premium));
-        setIsAdmin(Boolean(profile.is_admin));
+        const isUserAdmin = profile.demo ? Boolean(profile.is_admin) : (profile.email === 'theextremez2.0@gmail.com');
+        setIsAdmin(isUserAdmin);
       } else {
         setIsLoggedIn(false);
         setIsPremium(false);
@@ -87,7 +89,8 @@ export default function Navbar() {
       if (profile) {
         setIsLoggedIn(true);
         setIsPremium(Boolean(profile.is_premium));
-        setIsAdmin(Boolean(profile.is_admin));
+        const isUserAdmin = profile.demo ? Boolean(profile.is_admin) : (profile.email === 'theextremez2.0@gmail.com');
+        setIsAdmin(isUserAdmin);
       } else {
         setIsLoggedIn(false);
         setIsPremium(false);

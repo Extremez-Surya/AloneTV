@@ -66,11 +66,25 @@ export async function syncUserProfile(): Promise<UserProfile | null> {
       }
     }
 
+    const isUserAdmin = user.email === 'theextremez2.0@gmail.com';
+    
+    // Auto-align database profile row with the permanent admin rule
+    if (profile && Boolean(profile.is_admin) !== isUserAdmin) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ is_admin: isUserAdmin })
+          .eq('id', user.id);
+      } catch (dbErr) {
+        console.error('Failed to sync DB admin role status:', dbErr);
+      }
+    }
+
     const fullProfile: UserProfile = {
       id: profile.id,
       username: profile.username,
       is_premium: Boolean(profile.is_premium),
-      is_admin: Boolean(profile.is_admin),
+      is_admin: isUserAdmin,
       created_at: profile.created_at,
       email: user.email,
       demo: false
@@ -173,9 +187,12 @@ export async function updateAdminStatus(isAdmin: boolean): Promise<UserProfile |
       return null;
     }
 
+    const isUserAdmin = user.email === 'theextremez2.0@gmail.com';
+    const finalIsAdmin = isUserAdmin ? isAdmin : false;
+
     const { data: updatedProfile, error } = await supabase
       .from('profiles')
-      .update({ is_admin: isAdmin })
+      .update({ is_admin: finalIsAdmin })
       .eq('id', user.id)
       .select()
       .single();
@@ -186,7 +203,7 @@ export async function updateAdminStatus(isAdmin: boolean): Promise<UserProfile |
       id: updatedProfile.id,
       username: updatedProfile.username,
       is_premium: Boolean(updatedProfile.is_premium),
-      is_admin: Boolean(updatedProfile.is_admin),
+      is_admin: isUserAdmin && Boolean(updatedProfile.is_admin),
       created_at: updatedProfile.created_at,
       email: user.email,
       demo: false
@@ -360,17 +377,23 @@ export async function adminToggleAdmin(userId: string, isAdmin: boolean): Promis
     }
   }
 
+  // Reject promoting any other user account to admin
+  if (isAdmin) {
+    console.warn('Security alert: Promotion of arbitrary users to admin status is disabled.');
+    return false;
+  }
+
   try {
     const supabase = createClient();
     const { error } = await supabase
       .from('profiles')
-      .update({ is_admin: isAdmin })
+      .update({ is_admin: false })
       .eq('id', userId);
 
     if (error) throw error;
     return true;
   } catch (err) {
-    console.error('Failed to update user admin status as admin:', err);
+    console.error('Failed to demote user admin status:', err);
     return false;
   }
 }

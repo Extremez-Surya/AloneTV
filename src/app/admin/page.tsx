@@ -65,14 +65,16 @@ export default function AdminDashboardPage() {
         const local = getLocalProfile();
         if (local) {
           setCurrentUser(local);
-          setIsAdmin(Boolean(local.is_admin));
+          const isLocalAdmin = local.demo ? Boolean(local.is_admin) : (local.email === 'theextremez2.0@gmail.com');
+          setIsAdmin(isLocalAdmin);
         }
 
         // 2. Double check with database state
         const server = await syncUserProfile();
         if (server) {
           setCurrentUser(server);
-          setIsAdmin(Boolean(server.is_admin));
+          const isServerAdmin = server.demo ? Boolean(server.is_admin) : (server.email === 'theextremez2.0@gmail.com');
+          setIsAdmin(isServerAdmin);
         }
       } catch (err) {
         console.error('Failed to authenticate admin access:', err);
