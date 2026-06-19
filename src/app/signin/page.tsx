@@ -35,7 +35,7 @@ export default function SignInPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/profile`,
+          emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/profile`,
         },
       });
 
@@ -83,7 +83,7 @@ export default function SignInPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/profile`,
+          redirectTo: `${window.location.origin}/api/auth/callback?next=/profile`,
         },
       });
 
@@ -96,10 +96,14 @@ export default function SignInPage() {
 
   const handleDirectDemoLogin = () => {
     localStorage.setItem('alonetv_user', JSON.stringify({
+      id: 'demo-user-id',
       email: 'demo@example.com',
+      username: 'Demo Watcher',
       name: 'Demo Watcher',
+      is_premium: false,
       demo: true
     }));
+    window.dispatchEvent(new Event('alonetv_user_changed'));
     window.location.href = '/profile';
   };
 

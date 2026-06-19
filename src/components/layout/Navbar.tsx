@@ -10,6 +10,8 @@ import {
   SUPPORTED_LANGUAGES, 
   type AudioLanguage 
 } from '@/lib/audioPreferences';
+import { createClient } from '@/lib/supabase/client';
+import { getLocalProfile, syncUserProfile } from '@/lib/supabase/profile';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -24,6 +26,8 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [globalLanguage, setGlobalLanguage] = useState<AudioLanguage>('English');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -34,11 +38,28 @@ export default function Navbar() {
     setGlobalLanguage(getPreferredAudioLanguage());
 
     // Load initial avatar
+    // Load initial avatar & user status
     try {
       setAvatarUrl(localStorage.getItem('alonetv_avatar'));
+      const profile = getLocalProfile();
+      if (profile) {
+        setIsLoggedIn(true);
+        setIsPremium(Boolean(profile.is_premium));
+      }
     } catch {
       // ignore
     }
+
+    // Async server verification
+    syncUserProfile().then((profile) => {
+      if (profile) {
+        setIsLoggedIn(true);
+        setIsPremium(Boolean(profile.is_premium));
+      } else {
+        setIsLoggedIn(false);
+        setIsPremium(false);
+      }
+    });
 
     window.addEventListener('scroll', handleScroll);
     
@@ -57,10 +78,23 @@ export default function Navbar() {
     };
     window.addEventListener('alonetv_avatar_changed', handleAvatarSync);
 
+    const handleUserSync = () => {
+      const profile = getLocalProfile();
+      if (profile) {
+        setIsLoggedIn(true);
+        setIsPremium(Boolean(profile.is_premium));
+      } else {
+        setIsLoggedIn(false);
+        setIsPremium(false);
+      }
+    };
+    window.addEventListener('alonetv_user_changed', handleUserSync);
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('alonetv_language_changed', handleLanguageSync);
       window.removeEventListener('alonetv_avatar_changed', handleAvatarSync);
+      window.removeEventListener('alonetv_user_changed', handleUserSync);
     };
   }, []);
 
@@ -137,20 +171,29 @@ export default function Navbar() {
             </div>
 
             {/* Action CTAs */}
-            <div className="hidden sm:flex items-center gap-1.5">
-              <Link
-                href="/signin"
-                className="flex items-center justify-center px-3 text-xs font-medium text-text-primary rounded-md h-7 border border-border hover:bg-bg-secondary transition-colors"
-              >
-                Log In
-              </Link>
-              <Link
-                href="/signin"
-                className="flex items-center justify-center px-3 text-xs font-semibold text-bg-card bg-text-primary rounded-md h-7 hover:bg-black/90 transition-colors"
-              >
-                Sign Up
-              </Link>
-            </div>
+            {!isLoggedIn && (
+              <div className="hidden sm:flex items-center gap-1.5">
+                <Link
+                  href="/signin"
+                  className="flex items-center justify-center px-3 text-xs font-medium text-text-primary rounded-md h-7 border border-border hover:bg-bg-secondary transition-colors"
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/signin"
+                  className="flex items-center justify-center px-3 text-xs font-semibold text-bg-card bg-text-primary rounded-md h-7 hover:bg-black/90 transition-colors"
+                >
+                  Sign Up
+                </Link>
+              </div>
+            )}
+
+            {/* Premium Badge */}
+            {isLoggedIn && isPremium && (
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-gradient-to-r from-amber-500 to-yellow-500 text-black border border-yellow-400/30 shadow-md shadow-yellow-500/10 animate-pulse font-mono">
+                👑 Premium
+              </span>
+            )}
 
             {/* User Menu / Profile */}
             <Link
@@ -201,22 +244,37 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
-              <div className="pt-2 border-t border-border flex gap-2">
-                <Link
-                  href="/signin"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex-1 flex items-center justify-center px-3 py-2 text-xs font-semibold text-text-primary rounded-md border border-border hover:bg-bg-secondary transition-colors"
-                >
-                  Log In
-                </Link>
-                <Link
-                  href="/signin"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex-1 flex items-center justify-center px-3 py-2 text-xs font-semibold text-bg-card bg-text-primary rounded-md hover:bg-black/90 transition-colors"
-                >
-                  Sign Up
-                </Link>
-              </div>
+              {isLoggedIn ? (
+                <div className="pt-2.5 border-t border-border flex flex-col gap-1.5 text-left font-mono">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider px-3">
+                    Status: {isPremium ? 'Premium Member 👑' : 'Free Watcher'}
+                  </div>
+                  <Link
+                    href="/profile"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="w-full py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-lg text-xs font-bold uppercase tracking-wider text-text-primary text-center"
+                  >
+                    Go to Profile
+                  </Link>
+                </div>
+              ) : (
+                <div className="pt-2 border-t border-border flex gap-2">
+                  <Link
+                    href="/signin"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex-1 flex items-center justify-center px-3 py-2 text-xs font-semibold text-text-primary rounded-md border border-border hover:bg-bg-secondary transition-colors"
+                  >
+                    Log In
+                  </Link>
+                  <Link
+                    href="/signin"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex-1 flex items-center justify-center px-3 py-2 text-xs font-semibold text-bg-card bg-text-primary rounded-md hover:bg-black/90 transition-colors"
+                  >
+                    Sign Up
+                  </Link>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

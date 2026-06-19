@@ -758,41 +758,66 @@ export default function VideoPlayer({ sources, title, backdropUrl, onNextEpisode
         {/* Quick Actions */}
         {currentSource && (
           <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between flex-wrap gap-2 animate-fade-in">
-            <div className="flex gap-2">
-              <button
-                onClick={handleOpenNewTab}
-                className="px-3 py-1.5 bg-accent-teal/20 text-accent-teal rounded text-xs font-semibold hover:bg-accent-teal/30 transition-colors font-mono uppercase tracking-wider"
-              >
-                New Tab
-              </button>
-              <button
-                onClick={handleGroupWatch}
-                className="px-3 py-1.5 bg-accent-purple/20 text-accent-purple rounded text-xs font-semibold hover:bg-accent-purple/35 text-accent-purple transition-colors font-mono uppercase tracking-wider flex items-center gap-1"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 10.742l5.028-2.514m-5.028 3.514l5.028 2.514M17 12a3 3 0 11-6 0 3 3 0 016 0zm-7-5a3 3 0 11-6 0 3 3 0 016 0zm-7 10a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Sync Share
-              </button>
-              {cast && cast.length > 0 && (
-                <button
-                  onClick={() => setShowXRay((prev) => !prev)}
-                  className={`px-3 py-1.5 rounded text-xs font-semibold hover:bg-white/10 transition-colors font-mono uppercase tracking-wider flex items-center gap-1 border ${
-                    showXRay ? 'bg-accent-purple/20 text-accent-purple border-accent-purple/30' : 'bg-white/5 text-gray-400 border-white/5'
-                  }`}
-                >
-                  🎬 X-Ray
-                </button>
-              )}
-              <a
-                href={currentSource.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-1.5 bg-white/5 text-gray-400 rounded text-xs font-semibold hover:bg-white/10 transition-colors font-mono uppercase tracking-wider"
-              >
-                Direct Link
-              </a>
-            </div>
+            {currentSource.name === 'Preview (Official Trailer)' ? (
+              <>
+                <div className="flex gap-2">
+                  <span className="px-3 py-1.5 bg-purple-500/10 text-purple-400 rounded text-xs font-bold font-mono uppercase tracking-wider border border-purple-500/20">
+                    🔒 Preview Mode
+                  </span>
+                  {cast && cast.length > 0 && (
+                    <button
+                      onClick={() => setShowXRay((prev) => !prev)}
+                      className={`px-3 py-1.5 rounded text-xs font-semibold hover:bg-white/10 transition-colors font-mono uppercase tracking-wider flex items-center gap-1 border ${
+                        showXRay ? 'bg-accent-purple/20 text-accent-purple border-accent-purple/30' : 'bg-white/5 text-gray-400 border-white/5'
+                      }`}
+                    >
+                      🎬 X-Ray
+                    </button>
+                  )}
+                </div>
+                <span className="text-[10px] text-text-muted font-mono italic">
+                  Features like Sync Share, Direct Link, and premium channels are locked.
+                </span>
+              </>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleOpenNewTab}
+                    className="px-3 py-1.5 bg-accent-teal/20 text-accent-teal rounded text-xs font-semibold hover:bg-accent-teal/30 transition-colors font-mono uppercase tracking-wider"
+                  >
+                    New Tab
+                  </button>
+                  <button
+                    onClick={handleGroupWatch}
+                    className="px-3 py-1.5 bg-accent-purple/20 text-accent-purple rounded text-xs font-semibold hover:bg-accent-purple/35 text-accent-purple transition-colors font-mono uppercase tracking-wider flex items-center gap-1"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 10.742l5.028-2.514m-5.028 3.514l5.028 2.514M17 12a3 3 0 11-6 0 3 3 0 016 0zm-7-5a3 3 0 11-6 0 3 3 0 016 0zm-7 10a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Sync Share
+                  </button>
+                  {cast && cast.length > 0 && (
+                    <button
+                      onClick={() => setShowXRay((prev) => !prev)}
+                      className={`px-3 py-1.5 rounded text-xs font-semibold hover:bg-white/10 transition-colors font-mono uppercase tracking-wider flex items-center gap-1 border ${
+                        showXRay ? 'bg-accent-purple/20 text-accent-purple border-accent-purple/30' : 'bg-white/5 text-gray-400 border-white/5'
+                      }`}
+                    >
+                      🎬 X-Ray
+                    </button>
+                  )}
+                  <a
+                    href={currentSource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-white/5 text-gray-400 rounded text-xs font-semibold hover:bg-white/10 transition-colors font-mono uppercase tracking-wider"
+                  >
+                    Direct Link
+                  </a>
+                </div>
+              </>
+            )}
 
             <div className="flex gap-2">
               {hasNextEpisode && onNextEpisode && (

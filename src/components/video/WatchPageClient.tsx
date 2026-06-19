@@ -6,6 +6,7 @@ import { getTMDBImageUrl } from '@/lib/api/tmdb';
 import { getAllVideoSources, type VideoSource } from '@/lib/api/videoSources';
 import VideoPlayer from '@/components/video/VideoPlayer';
 import SeasonSelector from '@/components/video/SeasonSelector';
+import { getLocalProfile, syncUserProfile, updatePremiumStatus } from '@/lib/supabase/profile';
 import ContentCard from '@/components/content/ContentCard';
 import { 
   getPreferredAudioLanguage, 
@@ -97,6 +98,52 @@ export default function WatchPageClient({
   const [videoSources, setVideoSources] = useState<VideoSource[]>([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [sourceError, setSourceError] = useState<string | null>(null);
+
+  // Premium gating states
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
+  const [isCheckingPremium, setIsCheckingPremium] = useState(true);
+  const [trailerKey, setTrailerKey] = useState<string | null>(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+  // Sync premium status on mount
+  useEffect(() => {
+    async function checkPremium() {
+      try {
+        setIsCheckingPremium(true);
+        const local = getLocalProfile();
+        if (local) {
+          setIsLoggedIn(true);
+          setIsPremium(Boolean(local.is_premium));
+        }
+
+        const server = await syncUserProfile();
+        if (server) {
+          setIsLoggedIn(true);
+          setIsPremium(Boolean(server.is_premium));
+        }
+      } catch (err) {
+        console.error('Failed to resolve premium status:', err);
+      } finally {
+        setIsCheckingPremium(false);
+      }
+    }
+
+    checkPremium();
+    
+    const handleUserChange = () => {
+      const profile = getLocalProfile();
+      if (profile) {
+        setIsLoggedIn(true);
+        setIsPremium(Boolean(profile.is_premium));
+      } else {
+        setIsLoggedIn(false);
+        setIsPremium(false);
+      }
+    };
+    window.addEventListener('alonetv_user_changed', handleUserChange);
+    return () => window.removeEventListener('alonetv_user_changed', handleUserChange);
+  }, []);
 
   // Watch Party States
   const [partyRoom, setPartyRoom] = useState<string | null>(null);
@@ -393,6 +440,44 @@ export default function WatchPageClient({
         setIsLoadingSources(true);
         setSourceError(null);
 
+        if (isCheckingPremium) return;
+
+        // Free preview flow
+        if (!isPremium) {
+          try {
+            const res = await fetch(`/api/trailer?id=${tmdbId}&type=${type === 'anime' ? 'tv' : type}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.success && data.trailer?.key) {
+                setTrailerKey(data.trailer.key);
+                setVideoSources([{
+                  name: 'Preview (Official Trailer)',
+                  url: `https://www.youtube.com/embed/${data.trailer.key}?autoplay=1&rel=0`,
+                  quality: 'HD',
+                  type: 'iframe',
+                  recommended: true
+                }]);
+                setIsLoadingSources(false);
+                return;
+              }
+            }
+          } catch (err) {
+            console.error('Failed to load trailer details:', err);
+          }
+
+          // Fallback countdown trailer
+          setVideoSources([{
+            name: 'Preview (Official Trailer)',
+            url: `https://www.youtube.com/embed/Ke1Y3f2nlt0?autoplay=1&rel=0`,
+            quality: 'HD',
+            type: 'iframe',
+            recommended: true
+          }]);
+          setIsLoadingSources(false);
+          return;
+        }
+
+        // Premium Flow
         let sources: VideoSource[] = [];
 
         if (isAnime) {
@@ -421,7 +506,7 @@ export default function WatchPageClient({
     }
 
     fetchSources();
-  }, [type, id, videoId, currentSeason, currentEpisode, isAnime]);
+  }, [type, id, videoId, currentSeason, currentEpisode, isAnime, isPremium, isCheckingPremium, tmdbId]);
 
   const handleSeasonChange = (seasonNum: number) => {
     setCurrentSeason(seasonNum);
@@ -512,8 +597,47 @@ export default function WatchPageClient({
                     cast={cast}
                   />
                   
+                  {/* Premium Upgrade Banner for Free Users */}
+                  {!isPremium && (
+                    <div className="mt-4 p-5 bg-gradient-to-br from-[#120826]/90 to-[#07050e]/95 backdrop-blur-md rounded-2xl border border-purple-500/25 shadow-level-3 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center text-left animate-fade-in">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-500 text-sm">👑</span>
+                          <h4 className="text-sm font-bold text-white uppercase tracking-wider font-mono">Viewing Preview (Official Trailer)</h4>
+                        </div>
+                        <p className="text-xs text-text-muted leading-relaxed max-w-xl">
+                          You are currently watching the trailer preview. Unlock the premium plan to gain full access to all movie streaming servers, high definition quality, and synced watch parties.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setIsUpgradeModalOpen(true)}
+                        className="px-4 py-2 bg-gradient-to-r from-amber-500 to-purple-600 hover:opacity-90 text-white text-xs font-bold font-mono uppercase tracking-wider rounded-xl shadow-lg shadow-purple-500/25 border border-purple-500/30 transition-all shrink-0"
+                      >
+                        Unlock Full Video
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Premium Server List Locking for Visual Feedback */}
+                  {!isPremium && (
+                    <div className="mt-4 p-4 bg-bg-card border border-border rounded-2xl text-left">
+                      <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest font-mono mb-3">Streaming Server Status</h4>
+                      <div className="flex gap-2 flex-wrap opacity-65 pointer-events-none select-none">
+                        <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
+                          <span>🔒</span> ScreenScape (4K Auto)
+                        </div>
+                        <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
+                          <span>🔒</span> VidLink (1080p AD-FREE)
+                        </div>
+                        <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
+                          <span>🔒</span> VidKing (1080p Multilingual)
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Premium Linguistic Playback Guide Banner */}
-                  {selectedLanguage !== 'English' && (
+                  {isPremium && selectedLanguage !== 'English' && (
                     <div className="mt-4 p-4 rounded-xl bg-bg-card border border-border/80 shadow-level-2 flex gap-4 items-start animate-fade-in text-left">
                       <div className="p-2 rounded-lg bg-accent-purple/10 text-accent-purple shrink-0 mt-0.5">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -739,6 +863,10 @@ export default function WatchPageClient({
             <div className="flex gap-2 mb-6">
               <button
                 onClick={() => {
+                  if (!isPremium) {
+                    setIsUpgradeModalOpen(true);
+                    return;
+                  }
                   const room = prompt('Enter a room code to join, or leave empty to create a new one:');
                   if (room === null) return;
                   const finalRoom = room.trim() || 'ROOM_' + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -749,15 +877,17 @@ export default function WatchPageClient({
                   ]);
                 }}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider flex items-center justify-center gap-2 border transition-all ${
-                  partyRoom 
-                    ? 'bg-accent-purple border-accent-purple text-white shadow-lg shadow-accent-purple/35 animate-pulse'
-                    : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20'
+                  !isPremium
+                    ? 'bg-white/5 border-white/10 text-gray-500 cursor-not-allowed opacity-60'
+                    : partyRoom 
+                      ? 'bg-accent-purple border-accent-purple text-white shadow-lg shadow-accent-purple/35 animate-pulse'
+                      : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20'
                 }`}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                {partyRoom ? `Watch Party Active (${partyRoom})` : 'Start Group Watch'}
+                {isPremium ? (partyRoom ? `Watch Party Active (${partyRoom})` : 'Start Group Watch') : '🔒 Start Group Watch'}
               </button>
 
               {partyRoom && (
@@ -972,6 +1102,79 @@ export default function WatchPageClient({
           </div>
         </form>
       </div>
+
+      {/* Upgrade to Premium Modal */}
+      {isUpgradeModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="w-full max-w-md bg-gradient-to-b from-[#130d2b] to-[#0a0715] border border-purple-500/30 p-6 rounded-2xl shadow-level-4 text-left relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex justify-between items-center mb-5 border-b border-white/5 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-amber-500 text-lg">👑</span>
+                <h3 className="text-base font-bold text-white uppercase tracking-wider font-mono">AloneTV Premium</h3>
+              </div>
+              <button 
+                onClick={() => setIsUpgradeModalOpen(false)}
+                className="text-text-muted hover:text-white"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-lg font-bold text-white">Unlock Streaming Access</h4>
+                <p className="text-xs text-text-muted leading-relaxed mt-1">
+                  Enjoy the full duration of "{title}" in high quality 1080p and 4K resolution. Upgrade now to unlock this title and thousands of others.
+                </p>
+              </div>
+
+              {/* Perks list */}
+              <div className="space-y-2 py-3 border-y border-white/5 font-mono text-xs text-gray-300">
+                <div className="flex items-center gap-2">
+                  <span className="text-purple-500 font-bold text-sm">✓</span>
+                  <span>Unlimited 4K/1080p Streaming</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-purple-500 font-bold text-sm">✓</span>
+                  <span>Multiple Streaming Channels</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-purple-500 font-bold text-sm">✓</span>
+                  <span>Watch Party Chat Room Integration</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-purple-500 font-bold text-sm">✓</span>
+                  <span>AudioDub Parameter Selectors</span>
+                </div>
+              </div>
+
+              <div className="pt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const profile = await updatePremiumStatus(true);
+                    if (profile) {
+                      setIsPremium(true);
+                      setIsUpgradeModalOpen(false);
+                      window.dispatchEvent(new Event('alonetv_user_changed'));
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider bg-gradient-to-r from-amber-500 via-purple-600 to-accent-purple text-white hover:opacity-95 transition-all shadow-lg shadow-purple-500/20 border border-purple-500/30"
+                >
+                  Activate Premium Plan
+                </button>
+                <p className="text-[10px] text-center text-text-muted">
+                  Instant activation. Cancel anytime from your profile settings page.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

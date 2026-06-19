@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { createClient } from '@/lib/supabase/client';
+import { syncUserProfile, updatePremiumStatus } from '@/lib/supabase/profile';
 
 const AVATARS = [
   { id: 'anime', name: 'Anime Hero', url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=150&auto=format&fit=crop&q=60' },
@@ -15,7 +17,7 @@ const AVATARS = [
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'watchlist' | 'history' | 'playlists' | 'settings'>('watchlist');
-  const [user, setUser] = useState({ email: 'vinay@example.com', name: 'Vinay Kumar' });
+  const [user, setUser] = useState({ email: 'vinay@example.com', name: 'Vinay Kumar', is_premium: false });
   const [watchlist, setWatchlist] = useState<any[]>([]);
   const [continueWatching, setContinueWatching] = useState<any[]>([]);
   const [playlists, setPlaylists] = useState<any[]>([]);
@@ -23,12 +25,27 @@ export default function ProfilePage() {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
 
-  const loadData = () => {
+  const loadData = async () => {
     try {
-      const storedUser = JSON.parse(localStorage.getItem('alonetv_user') || 'null');
-      if (storedUser) {
-        setUser(storedUser);
+      // 1. Sync Supabase user details if available
+      const synced = await syncUserProfile();
+      if (synced) {
+        setUser({
+          email: synced.email || 'user@example.com',
+          name: synced.username || 'Watcher',
+          is_premium: Boolean(synced.is_premium)
+        });
+      } else {
+        const storedUser = JSON.parse(localStorage.getItem('alonetv_user') || 'null');
+        if (storedUser) {
+          setUser({
+            email: storedUser.email || 'demo@example.com',
+            name: storedUser.name || storedUser.username || 'Demo Watcher',
+            is_premium: Boolean(storedUser.is_premium)
+          });
+        }
       }
       
       const storedWatchlist = JSON.parse(localStorage.getItem('alonetv_watchlist') || '[]');
@@ -44,6 +61,8 @@ export default function ProfilePage() {
       setAvatarUrl(storedAvatar);
     } catch (e) {
       console.error('Failed to load profile database state:', e);
+    } finally {
+      setIsLoadingSession(false);
     }
   };
 
@@ -61,8 +80,15 @@ export default function ProfilePage() {
     };
   }, []);
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Supabase sign out error:', err);
+    }
     localStorage.removeItem('alonetv_user');
+    window.dispatchEvent(new Event('alonetv_user_changed'));
     window.location.href = '/';
   };
 
@@ -249,9 +275,20 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="space-y-1">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-[-1.28px] text-text-primary">
-                {user.name}
-              </h1>
+              <div className="flex flex-wrap items-center gap-2.5 justify-center sm:justify-start">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-[-1.28px] text-text-primary">
+                  {user.name}
+                </h1>
+                {user.is_premium ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-lg shadow-yellow-500/25 border border-yellow-400/30 animate-pulse font-mono font-bold">
+                    👑 Premium
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/10 text-gray-400 border border-white/5 font-mono">
+                    Free Plan
+                  </span>
+                )}
+              </div>
               <p className="text-xs sm:text-sm text-text-muted font-mono">{user.email}</p>
               <div className="pt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
                 <span className="font-mono text-[10px] uppercase tracking-wider text-accent-purple px-2 py-0.5 bg-accent-purple/5 border border-accent-purple/15 rounded-md">
@@ -641,32 +678,114 @@ export default function ProfilePage() {
             )}
 
             {activeTab === 'settings' && (
-              <div className="max-w-lg bg-bg-card rounded-2xl p-6 border border-border shadow-level-3">
-                <div className="space-y-5">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 font-mono text-left">Display Name</label>
-                    <input
-                      type="text"
-                      defaultValue={user.name}
-                      onChange={(e) => setUser({ ...user, name: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-purple"
-                    />
+              <div className="space-y-6 text-left">
+                {/* Profile details */}
+                <div className="max-w-lg bg-bg-card rounded-2xl p-6 border border-border shadow-level-3">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted mb-4 font-mono">Profile Settings</h3>
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 font-mono">Display Name</label>
+                      <input
+                        type="text"
+                        defaultValue={user.name}
+                        onChange={(e) => setUser({ ...user, name: e.target.value })}
+                        className="w-full px-3.5 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-purple"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 font-mono">Email address</label>
+                      <input
+                        type="email"
+                        defaultValue={user.email}
+                        disabled
+                        className="w-full px-3.5 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-muted cursor-not-allowed"
+                      />
+                    </div>
+                    <button 
+                      onClick={handleSignOut}
+                      className="w-full py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-md shadow-red-600/10"
+                    >
+                      Sign Out
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 font-mono text-left">Email address</label>
-                    <input
-                      type="email"
-                      defaultValue={user.email}
-                      disabled
-                      className="w-full px-3.5 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-muted cursor-not-allowed"
-                    />
+                </div>
+
+                {/* Premium Membership details */}
+                <div className="max-w-lg bg-gradient-to-br from-[#130d2b] to-[#0a0715] rounded-2xl p-6 border border-purple-500/20 shadow-level-3 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+                  
+                  <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-purple-400 font-mono">AloneTV Membership</h3>
+                    {user.is_premium ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-500 border border-amber-500/35">
+                        👑 ACTIVE
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/5 text-gray-400 border border-white/10">
+                        INACTIVE
+                      </span>
+                    )}
                   </div>
-                  <button 
-                    onClick={handleSignOut}
-                    className="w-full py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-md shadow-red-600/10"
-                  >
-                    Sign Out
-                  </button>
+
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-base font-bold text-white">
+                        {user.is_premium ? 'Premium Access Active' : 'Unlock AloneTV Premium'}
+                      </h4>
+                      <p className="text-xs text-text-muted leading-relaxed mt-1">
+                        Unlock high quality streaming, watch party synchronization, custom playlists, zero advertisements, and multi-language dubs.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 py-2 border-y border-white/5">
+                      <div className="flex items-center gap-2 text-xs text-gray-300">
+                        <span className="text-purple-500 font-bold">✓</span>
+                        <span>4K & HD Playback</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-300">
+                        <span className="text-purple-500 font-bold">✓</span>
+                        <span>No Ads</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-300">
+                        <span className="text-purple-500 font-bold">✓</span>
+                        <span>Watch Parties</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-300">
+                        <span className="text-purple-500 font-bold">✓</span>
+                        <span>Multi-language Dubs</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      {user.is_premium ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const updated = await updatePremiumStatus(false);
+                            if (updated) {
+                              setUser(prev => ({ ...prev, is_premium: false }));
+                            }
+                          }}
+                          className="w-full py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider bg-red-950/20 border border-red-500/30 text-red-400 hover:bg-red-950/45 hover:text-white transition-colors"
+                        >
+                          Downgrade to Free Plan
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const updated = await updatePremiumStatus(true);
+                            if (updated) {
+                              setUser(prev => ({ ...prev, is_premium: true }));
+                            }
+                          }}
+                          className="w-full py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider bg-gradient-to-r from-amber-500 via-purple-600 to-accent-purple hover:opacity-95 text-white shadow-lg shadow-purple-500/30 transition-all border border-purple-500/40"
+                        >
+                          Upgrade to Premium
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
