@@ -45,8 +45,8 @@ export default function Navbar() {
       const profile = getLocalProfile();
       if (profile) {
         setIsLoggedIn(true);
-        setIsPremium(Boolean(profile.is_premium));
         const isUserAdmin = profile.demo ? Boolean(profile.is_admin) : (profile.email === 'theextremez2.0@gmail.com');
+        setIsPremium(Boolean(profile.is_premium) || isUserAdmin);
         setIsAdmin(isUserAdmin);
       }
     } catch {
@@ -57,8 +57,8 @@ export default function Navbar() {
     syncUserProfile().then((profile) => {
       if (profile) {
         setIsLoggedIn(true);
-        setIsPremium(Boolean(profile.is_premium));
         const isUserAdmin = profile.demo ? Boolean(profile.is_admin) : (profile.email === 'theextremez2.0@gmail.com');
+        setIsPremium(Boolean(profile.is_premium) || isUserAdmin);
         setIsAdmin(isUserAdmin);
       } else {
         setIsLoggedIn(false);
@@ -88,8 +88,8 @@ export default function Navbar() {
       const profile = getLocalProfile();
       if (profile) {
         setIsLoggedIn(true);
-        setIsPremium(Boolean(profile.is_premium));
         const isUserAdmin = profile.demo ? Boolean(profile.is_admin) : (profile.email === 'theextremez2.0@gmail.com');
+        setIsPremium(Boolean(profile.is_premium) || isUserAdmin);
         setIsAdmin(isUserAdmin);
       } else {
         setIsLoggedIn(false);

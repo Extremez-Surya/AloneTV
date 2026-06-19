@@ -47,7 +47,8 @@ export async function syncUserProfile(): Promise<UserProfile | null> {
           id: user.id,
           username,
           is_premium: false,
-          is_admin: false
+          is_admin: false,
+          email: user.email
         })
         .select()
         .single();
@@ -61,22 +62,33 @@ export async function syncUserProfile(): Promise<UserProfile | null> {
           id: user.id,
           username,
           is_premium: false,
-          is_admin: false
+          is_admin: false,
+          email: user.email
         };
       }
     }
 
     const isUserAdmin = user.email === 'theextremez2.0@gmail.com';
+    const emailNeedsUpdate = !profile.email || profile.email !== user.email;
     
-    // Auto-align database profile row with the permanent admin rule
-    if (profile && Boolean(profile.is_admin) !== isUserAdmin) {
+    // Auto-align database profile row with the permanent admin rule and sync email
+    if (profile && (Boolean(profile.is_admin) !== isUserAdmin || emailNeedsUpdate)) {
       try {
-        await supabase
+        const { data: updatedProfile, error: updateError } = await supabase
           .from('profiles')
-          .update({ is_admin: isUserAdmin })
-          .eq('id', user.id);
+          .update({ 
+            is_admin: isUserAdmin,
+            email: user.email 
+          })
+          .eq('id', user.id)
+          .select()
+          .single();
+        
+        if (!updateError && updatedProfile) {
+          profile = updatedProfile;
+        }
       } catch (dbErr) {
-        console.error('Failed to sync DB admin role status:', dbErr);
+        console.error('Failed to sync DB admin role/email status:', dbErr);
       }
     }
 

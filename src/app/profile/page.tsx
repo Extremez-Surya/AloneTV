@@ -35,7 +35,7 @@ export default function ProfilePage() {
         setUser({
           email: synced.email || 'user@example.com',
           name: synced.username || 'Watcher',
-          is_premium: Boolean(synced.is_premium),
+          is_premium: Boolean(synced.is_premium) || Boolean(synced.is_admin),
           is_admin: Boolean(synced.is_admin)
         });
       } else {
@@ -44,7 +44,7 @@ export default function ProfilePage() {
           setUser({
             email: storedUser.email || 'demo@example.com',
             name: storedUser.name || storedUser.username || 'Demo Watcher',
-            is_premium: Boolean(storedUser.is_premium),
+            is_premium: Boolean(storedUser.is_premium) || Boolean(storedUser.is_admin),
             is_admin: Boolean(storedUser.is_admin)
           });
         }

@@ -114,13 +114,13 @@ export default function WatchPageClient({
         const local = getLocalProfile();
         if (local) {
           setIsLoggedIn(true);
-          setIsPremium(Boolean(local.is_premium));
+          setIsPremium(Boolean(local.is_premium) || Boolean(local.is_admin));
         }
 
         const server = await syncUserProfile();
         if (server) {
           setIsLoggedIn(true);
-          setIsPremium(Boolean(server.is_premium));
+          setIsPremium(Boolean(server.is_premium) || Boolean(server.is_admin));
         }
       } catch (err) {
         console.error('Failed to resolve premium status:', err);
@@ -135,7 +135,7 @@ export default function WatchPageClient({
       const profile = getLocalProfile();
       if (profile) {
         setIsLoggedIn(true);
-        setIsPremium(Boolean(profile.is_premium));
+        setIsPremium(Boolean(profile.is_premium) || Boolean(profile.is_admin));
       } else {
         setIsLoggedIn(false);
         setIsPremium(false);
