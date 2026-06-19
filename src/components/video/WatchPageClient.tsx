@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getTMDBImageUrl } from '@/lib/api/tmdb';
 import { getAllVideoSources, type VideoSource } from '@/lib/api/videoSources';
 import VideoPlayer from '@/components/video/VideoPlayer';
@@ -108,8 +109,10 @@ export default function WatchPageClient({
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
+  const router = useRouter();
+
   const handleOpenUpgradeModal = () => {
-    setIsUpgradeModalOpen(true);
+    router.push(`/payment?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}&title=${encodeURIComponent(title)}`);
   };
 
   // Sync premium status on mount

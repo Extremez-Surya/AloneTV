@@ -55,6 +55,7 @@ export default function AdminDashboardPage() {
 
   // Redirect count
   const [redirectSeconds, setRedirectSeconds] = useState(5);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   // Verify Admin privileges
   useEffect(() => {
@@ -110,8 +111,13 @@ export default function AdminDashboardPage() {
       if (users.length > 0 && !simEmail) {
         setSimEmail(users[0].email || 'demo@example.com');
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Failed to load database profiles:', err);
+      if (err.code === 'PGRST205' || err.message?.toLowerCase().includes('profiles') || err.message?.toLowerCase().includes('relation')) {
+        setDbError(prev => prev && prev.includes('profiles') ? prev : (prev ? prev + ', public.profiles' : 'public.profiles'));
+      } else {
+        setDbError(err.message || 'Database error loading profiles');
+      }
     } finally {
       setIsLoadingUsers(false);
     }
@@ -141,11 +147,22 @@ export default function AdminDashboardPage() {
           const data = await res.json();
           if (data.success) {
             setPayments(data.payments || []);
+          } else {
+            const msg = data.error || '';
+            if (msg.includes('payments') || msg.includes('PGRST205') || msg.includes('relation')) {
+              setDbError(prev => prev && prev.includes('payments') ? prev : (prev ? prev + ', public.payments' : 'public.payments'));
+            }
+          }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          const msg = errData.error || '';
+          if (msg.includes('payments') || msg.includes('PGRST205') || msg.includes('relation')) {
+            setDbError(prev => prev && prev.includes('payments') ? prev : (prev ? prev + ', public.payments' : 'public.payments'));
           }
         }
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Failed to load database payments:', err);
     } finally {
       setIsLoadingPayments(false);
     }
@@ -413,6 +430,84 @@ export default function AdminDashboardPage() {
             </button>
           )}
         </div>
+
+        {dbError && (
+          <div className="mb-8 p-5 rounded-2xl bg-red-950/20 border border-red-500/35 text-red-200 text-xs sm:text-sm font-medium leading-relaxed">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-red-500 text-lg">⚠️</span>
+              <strong className="text-white uppercase tracking-wider font-mono text-sm">Supabase Schema Missing</strong>
+            </div>
+            <p className="mb-3">
+              It looks like the required database tables (<span className="text-white font-mono">{dbError}</span>) do not exist in your live Supabase database. This is why the admin list is empty and user actions fail.
+            </p>
+            <p className="mb-4 font-semibold text-white">
+              To resolve this immediately, copy the SQL code below, open the SQL Editor in your Supabase Dashboard, paste it, and click Run:
+            </p>
+            <details className="bg-black/40 p-4 rounded-xl border border-red-500/10 cursor-pointer">
+              <summary className="text-[10px] uppercase font-mono tracking-widest text-text-muted hover:text-white select-none">
+                Show SQL Creation & Sync Script
+              </summary>
+              <pre className="mt-3 text-[10px] font-mono text-gray-300 overflow-x-auto whitespace-pre p-3 bg-black/60 rounded-lg border border-white/5 cursor-text select-text leading-normal">
+{`-- 1. Create public profiles table linked to auth.users
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username TEXT,
+  email TEXT,
+  is_premium BOOLEAN DEFAULT false,
+  is_admin BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable Row Level Security (RLS) on profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Profiles RLS Policies
+CREATE POLICY "Allow public read access to profiles" ON public.profiles
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Allow users to insert their own profile" ON public.profiles
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Allow users to update their own profile" ON public.profiles
+  FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Allow admin full access to profiles" ON public.profiles
+  FOR ALL TO authenticated USING (auth.jwt() ->> 'email' = 'theextremez2.0@gmail.com');
+
+
+-- 2. Create payments table for simulated payment logs
+CREATE TABLE IF NOT EXISTS public.payments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  amount NUMERIC(10, 2) NOT NULL,
+  status TEXT NOT NULL, -- 'success', 'pending', 'failed'
+  plan_type TEXT NOT NULL, -- 'premium_monthly', 'premium_yearly'
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable Row Level Security (RLS) on payments
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+
+-- Payments RLS Policies
+CREATE POLICY "Enable read access for authenticated users" ON public.payments
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Enable inserts for authenticated users" ON public.payments
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Enable updates and deletes for admins only" ON public.payments
+  FOR ALL TO authenticated USING (auth.jwt() ->> 'email' = 'theextremez2.0@gmail.com');
+
+-- 3. Copy existing registered users from auth.users to public.profiles
+INSERT INTO public.profiles (id, email, username)
+SELECT id, email, COALESCE(raw_user_meta_data->>'display_name', split_part(email, '@', 1))
+FROM auth.users
+ON CONFLICT (id) DO NOTHING;`}
+              </pre>
+            </details>
+          </div>
+        )}
 
         {/* Tab selection bar */}
         <div className="flex gap-4 border-b border-border/30 mb-8 overflow-x-auto pb-0.5 scrollbar-none">

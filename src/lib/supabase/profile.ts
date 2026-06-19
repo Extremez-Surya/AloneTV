@@ -310,7 +310,7 @@ export async function fetchProfiles(): Promise<UserProfile[]> {
     }));
   } catch (err) {
     console.error('Failed to fetch user profiles for admin:', err);
-    return [];
+    throw err;
   }
 }
 

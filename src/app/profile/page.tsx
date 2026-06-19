@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
 import { syncUserProfile, updatePremiumStatus, updateAdminStatus } from '@/lib/supabase/profile';
@@ -17,6 +18,7 @@ const AVATARS = [
 ];
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'watchlist' | 'history' | 'playlists' | 'settings'>('watchlist');
   const [user, setUser] = useState({ email: 'vinay@example.com', name: 'Vinay Kumar', is_premium: false, is_admin: false });
   const [watchlist, setWatchlist] = useState<any[]>([]);
@@ -827,7 +829,7 @@ export default function ProfilePage() {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => setIsUpgradeModalOpen(true)}
+                          onClick={() => router.push('/payment')}
                           className="w-full py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider bg-gradient-to-r from-amber-500 via-purple-600 to-accent-purple hover:opacity-95 text-white shadow-lg shadow-purple-500/30 transition-all border border-purple-500/40"
                         >
                           Upgrade to Premium
