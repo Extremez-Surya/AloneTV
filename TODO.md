@@ -1,6 +1,11 @@
-# TODO - Admin deletion utilities & operations fix
+# TODO - Netflix-like Premium Plans (INR) - AloneTV
 
-- [x] Update `src/app/api/admin/system/route.ts` to implement missing operations (clear_reviews, reset_history) as safe local ops, and improve clear_cache to actually revalidate server-side (best-effort).
-- [x] Update `src/app/admin/page.tsx` Operations tab with working handlers + safer delete utils scaffolding.
-- [ ] Align UI actions with backend supported action names; ensure `handleSystemAction` matches `/api/admin/system`.
-- [x] Run `pnpm run build` to confirm TS/syntax errors are resolved.
+- [x] Identify current subscription UI: `src/app/payment/page.tsx`
+- [ ] Redesign `/payment` plans to match image tiers:
+  - [ ] Mobile ₹149/mo (480p)
+  - [ ] Basic ₹199/mo (720p)
+  - [ ] Standard ₹499/mo (1080p, device count 2)
+  - [ ] Premium ₹649/mo (4K+HDR, devices 4, spatial audio)
+- [ ] Update payment insertion to use tier-based plan_type (keep compatibility with admin).
+- [ ] Ensure UI copy is “new concept” (no Netflix branding/copyright).
+- [ ] Run `pnpm run build`.

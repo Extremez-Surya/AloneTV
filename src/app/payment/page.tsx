@@ -18,7 +18,49 @@ function PaymentPageContent() {
   const [isDemo, setIsDemo] = useState<boolean>(false);
   const [isCheckingUser, setIsCheckingUser] = useState<boolean>(true);
   
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
+  type PlanKey = 'mobile' | 'basic' | 'standard' | 'premium';
+  const [selectedPlan, setSelectedPlan] = useState<PlanKey>('mobile');
+
+  const PLAN_DATA: Record<PlanKey, { label: string; plan_type: string; monthlyPriceINR: number; resolution: string; videoQuality: string; deviceCount: number; downloadDevices: number; spatialAudio?: boolean; }> = {
+    mobile: {
+      label: 'Mobile',
+      plan_type: 'premium_mobile',
+      monthlyPriceINR: 149,
+      resolution: '480p',
+      videoQuality: 'Fair',
+      deviceCount: 1,
+      downloadDevices: 1
+    },
+    basic: {
+      label: 'Basic',
+      plan_type: 'premium_basic',
+      monthlyPriceINR: 199,
+      resolution: '720p (HD)',
+      videoQuality: 'Good',
+      deviceCount: 1,
+      downloadDevices: 1
+    },
+    standard: {
+      label: 'Standard',
+      plan_type: 'premium_standard',
+      monthlyPriceINR: 499,
+      resolution: '1080p (Full HD)',
+      videoQuality: 'Great',
+      deviceCount: 2,
+      downloadDevices: 2
+    },
+    premium: {
+      label: 'Premium',
+      plan_type: 'premium_premium',
+      monthlyPriceINR: 649,
+      resolution: '4K (Ultra HD) + HDR',
+      videoQuality: 'Best',
+      deviceCount: 4,
+      downloadDevices: 6,
+      spatialAudio: true
+    }
+  };
+
   const [checkoutStep, setCheckoutStep] = useState<'plans' | 'qr' | 'success'>('plans');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [transactionId, setTransactionId] = useState<string>('');
@@ -60,9 +102,9 @@ function PaymentPageContent() {
   const handleConfirmPayment = async () => {
     setIsSubmitting(true);
     try {
-      const amount = selectedPlan === 'monthly' ? 9.99 : 99.99;
-      const planLabel = selectedPlan === 'monthly' ? 'premium_monthly' : 'premium_yearly';
-      
+      const amount = PLAN_DATA[selectedPlan].monthlyPriceINR;
+      const planLabel = PLAN_DATA[selectedPlan].plan_type;
+
       if (isDemo) {
         // Log locally for Demo Mode
         const newPayment = {
@@ -136,62 +178,58 @@ function PaymentPageContent() {
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={() => setSelectedPlan('monthly')}
-                className={`w-full p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
-                  selectedPlan === 'monthly'
-                    ? 'border-purple-500 bg-purple-500/15 shadow-[0_0_15px_rgba(168,85,247,0.15)] text-white'
-                    : 'border-white/10 bg-white/5 text-gray-400 hover:border-white/20'
-                }`}
-              >
-                <div className="space-y-1">
-                  <div className="font-mono text-xs font-bold uppercase tracking-wider text-purple-300">Monthly Pass</div>
-                  <div className="text-[10px] text-text-muted">Instant activation via manual verification</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xl font-bold text-white font-mono">$9.99</div>
-                  <div className="text-[9px] text-text-muted">per month</div>
-                </div>
-              </button>
+              {/* Netflix-like tiers (custom wording, no trademark) */}
+              <div className="space-y-3">
+                {(['mobile','basic','standard','premium'] as const).map((key) => {
+                  const isActive = selectedPlan === key;
+                  const title = PLAN_DATA[key].label;
+                  const price = `₹${PLAN_DATA[key].monthlyPriceINR}`;
 
-              <button
-                type="button"
-                onClick={() => setSelectedPlan('yearly')}
-                className={`w-full p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
-                  selectedPlan === 'yearly'
-                    ? 'border-purple-500 bg-purple-500/15 shadow-[0_0_15px_rgba(168,85,247,0.15)] text-white'
-                    : 'border-white/10 bg-white/5 text-gray-400 hover:border-white/20'
-                }`}
-              >
-                <div className="space-y-1">
-                  <div className="font-mono text-xs font-bold uppercase tracking-wider text-purple-300">Yearly Pass</div>
-                  <div className="text-[10px] text-text-muted">Best savings for long-term streamers</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xl font-bold text-white font-mono">$99.99</div>
-                  <div className="text-[9px] text-green-400 font-bold font-mono">SAVE 20%</div>
-                </div>
-              </button>
-            </div>
+                  const subtitle =
+                    key === 'mobile'
+                      ? '480p • Fair quality'
+                      : key === 'basic'
+                        ? '720p (HD) • Good quality'
+                        : key === 'standard'
+                          ? '1080p (Full HD) • Great quality'
+                          : '4K (Ultra HD) + HDR • Best quality';
 
-            {/* Perks grid */}
-            <div className="p-4 bg-black/40 rounded-xl border border-white/5 space-y-2 text-[11px] font-mono text-gray-300 leading-relaxed">
-              <div className="flex items-center gap-2">
-                <span className="text-purple-500 font-bold">✓</span>
-                <span>Direct HD / 4K Streaming Servers</span>
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSelectedPlan(key)}
+                      className={`w-full p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
+                        isActive
+                          ? 'border-purple-500 bg-purple-500/15 shadow-[0_0_15px_rgba(168,85,247,0.15)] text-white'
+                          : 'border-white/10 bg-white/5 text-gray-400 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="font-mono text-xs font-bold uppercase tracking-wider text-purple-300">
+                          {title}
+                          {key === 'basic' && isActive ? null : null}
+                        </div>
+                        <div className="text-[10px] text-text-muted">{subtitle}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xl font-bold text-white font-mono">{price}</div>
+                        <div className="text-[9px] text-text-muted">per month</div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-purple-500 font-bold">✓</span>
-                <span>Zero Ads or Interruptions</span>
+
+              {/* Tier perks preview */}
+              <div className="p-4 bg-black/40 rounded-xl border border-white/5 space-y-2 text-[11px] font-mono text-gray-300 leading-relaxed">
+                <div className="flex items-center gap-2"><span className="text-purple-500 font-bold">✓</span><span>{PLAN_DATA[selectedPlan].resolution}</span></div>
+                <div className="flex items-center gap-2"><span className="text-purple-500 font-bold">✓</span><span>Multiple devices (same household)</span></div>
+                {selectedPlan === 'premium' && (
+                  <div className="flex items-center gap-2"><span className="text-purple-500 font-bold">✓</span><span>Spatial audio (immersive sound)</span></div>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-purple-500 font-bold">✓</span>
-                <span>Watch Parties & Sync Co-Watching</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-purple-500 font-bold">✓</span>
-                <span>Multi-Language Audio Selector Dubs</span>
-              </div>
-            </div>
+
 
             {/* Submit Button */}
             <button
@@ -211,7 +249,9 @@ function PaymentPageContent() {
               <span className="text-xs uppercase font-mono font-bold tracking-widest text-purple-400">Step 2 of 2</span>
               <h2 className="text-xl font-bold text-white mt-1">Scan Payment QR Code</h2>
               <p className="text-xs text-text-muted mt-2 leading-relaxed">
-                Scan the QR code below and transfer exactly <span className="text-white font-bold font-mono">{selectedPlan === 'monthly' ? '$9.99' : '$99.99'}</span>.
+                Scan the QR code below and transfer exactly{' '}
+                <span className="text-white font-bold font-mono">{`₹${PLAN_DATA[selectedPlan].monthlyPriceINR}`}</span>.
+
               </p>
             </div>
 
@@ -239,11 +279,13 @@ function PaymentPageContent() {
               </div>
               <div className="flex justify-between items-center text-text-muted">
                 <span>Pass Selected:</span>
-                <span className="text-white font-semibold uppercase">{selectedPlan}</span>
+                <span className="text-white font-semibold uppercase">{PLAN_DATA[selectedPlan].label}</span>
+
               </div>
               <div className="flex justify-between items-center border-t border-white/5 pt-2 text-text-muted">
                 <span className="font-bold text-white">Amount Due:</span>
-                <span className="text-amber-400 font-bold text-sm">{selectedPlan === 'monthly' ? '$9.99' : '$99.99'}</span>
+                <span className="text-amber-400 font-bold text-sm">{`₹${PLAN_DATA[selectedPlan].monthlyPriceINR}`}</span>
+
               </div>
             </div>
 
