@@ -176,8 +176,6 @@ function PaymentPageContent() {
 
             {/* Plans List */}
             <div className="space-y-3">
-              <button
-                type="button"
               {/* Netflix-like tiers (custom wording, no trademark) */}
               <div className="space-y-3">
                 {(['mobile','basic','standard','premium'] as const).map((key) => {
