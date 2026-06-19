@@ -16,6 +16,8 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+import JsonLd from "@/components/layout/JsonLd";
+
 export const metadata: Metadata = {
   title: {
     default: "AloneTV - Free 4K Movies, TV Shows, Web Series & Anime Streaming",
@@ -50,6 +52,31 @@ export const metadata: Metadata = {
   },
 };
 
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "AloneTV",
+  "url": "https://alonetv.com",
+  "logo": "https://alonetv.com/favicon.ico",
+  "description": "Stream unlimited free movies, TV series, web series, and anime in stunning 4K quality.",
+  "sameAs": [
+    "https://twitter.com/alonetv",
+    "https://facebook.com/alonetv"
+  ]
+};
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "AloneTV",
+  "url": "https://alonetv.com",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://alonetv.com/search?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -58,6 +85,8 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-bg-primary text-text-primary">
+        <JsonLd schema={organizationSchema} />
+        <JsonLd schema={websiteSchema} />
         <Navbar />
         <main className="flex-1">{children}</main>
         <footer className="bg-bg-card border-t border-border mt-auto pt-16 pb-8 z-10 relative">

@@ -1,6 +1,26 @@
+import type { Metadata } from 'next';
 import HeroBanner from '@/components/layout/HeroBanner';
 import CollectionRail from '@/components/content/CollectionRail';
 import { getAnimePageModel } from '@/lib/ott-collections';
+
+export const metadata: Metadata = {
+  title: 'Anime Catalog - Stream Free Anime Online | AloneTV',
+  description: 'Watch popular anime subbed and dubbed in HD quality. Access simulcasts, trending series, and classic movies for free on AloneTV.',
+  keywords: ['anime', 'watch anime', 'free anime online', 'anime subbed', 'anime dubbed', 'AloneTV anime'],
+  alternates: {
+    canonical: 'https://alonetv.com/anime',
+  },
+  openGraph: {
+    title: 'Anime Catalog - Stream Free Anime Online | AloneTV',
+    description: 'Watch popular anime subbed and dubbed in HD quality. Access simulcasts, trending series, and classic movies for free on AloneTV.',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Anime Catalog - Stream Free Anime Online | AloneTV',
+    description: 'Watch popular anime subbed and dubbed in HD quality. Access simulcasts, trending series, and classic movies for free on AloneTV.',
+  },
+};
 
 export default async function AnimePage() {
   const model = await getAnimePageModel();

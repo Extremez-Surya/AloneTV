@@ -3,14 +3,27 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { getTMDBImageUrl } from '@/lib/api/tmdb';
 import { getAllVideoSources, type VideoSource } from '@/lib/api/videoSources';
-import VideoPlayer from '@/components/video/VideoPlayer';
 import SeasonSelector from '@/components/video/SeasonSelector';
 import { getLocalProfile, syncUserProfile, updatePremiumStatus } from '@/lib/supabase/profile';
 import { createClient } from '@/lib/supabase/client';
-import PremiumUpgradeModal from '@/components/video/PremiumUpgradeModal';
 import ContentCard from '@/components/content/ContentCard';
+
+const VideoPlayer = dynamic(() => import('@/components/video/VideoPlayer'), {
+  ssr: false,
+  loading: () => (
+    <div className="aspect-video w-full bg-black/40 animate-pulse border border-border rounded-2xl flex flex-col items-center justify-center gap-3">
+      <div className="w-8 h-8 border-4 border-accent-purple border-t-transparent rounded-full animate-spin" />
+      <span className="font-mono text-[10px] text-text-muted uppercase tracking-wider">Loading playback engine...</span>
+    </div>
+  )
+});
+
+const PremiumUpgradeModal = dynamic(() => import('@/components/video/PremiumUpgradeModal'), {
+  ssr: false
+});
 import { 
   getPreferredAudioLanguage, 
   type AudioLanguage 

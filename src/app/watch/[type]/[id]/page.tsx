@@ -1,4 +1,6 @@
+import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import JsonLd from '@/components/layout/JsonLd';
 import {
   getMovieDetail,
   getTVShowDetail,
@@ -19,6 +21,119 @@ interface WatchPageProps {
     type: string;
     id: string;
   }>;
+}
+
+async function getMediaInfo(type: string, id: string) {
+  let title = '';
+  let overview = '';
+  let posterPath = '';
+  try {
+    if (id.startsWith('tt')) {
+      const findResult = await findByImdbId(id);
+      if (findResult) {
+        const movieMatch = findResult.movie_results?.[0];
+        const tvMatch = findResult.tv_results?.[0];
+        if (movieMatch) {
+          title = movieMatch.title || '';
+          overview = movieMatch.overview || '';
+          posterPath = movieMatch.poster_path ? `https://image.tmdb.org/t/p/w780${movieMatch.poster_path}` : '';
+        } else if (tvMatch) {
+          title = tvMatch.name || '';
+          overview = tvMatch.overview || '';
+          posterPath = tvMatch.poster_path ? `https://image.tmdb.org/t/p/w780${tvMatch.poster_path}` : '';
+        }
+      }
+    } else if (id.startsWith('tvmaze-')) {
+      const tvmazeId = parseInt(id.replace('tvmaze-', ''));
+      if (!isNaN(tvmazeId)) {
+        const show = await getTVMazeShowDetail(tvmazeId);
+        if (show) {
+          title = show.name;
+          overview = show.summary ? show.summary.replace(/<[^>]*>/g, '') : '';
+          posterPath = show.image?.medium || show.image?.original || '';
+        }
+      }
+    } else if (id.startsWith('kitsu-')) {
+      const kitsuId = id.replace('kitsu-', '');
+      const anime = await getKitsuAnimeDetail(kitsuId);
+      if (anime) {
+        title = anime.title;
+        overview = anime.synopsis || '';
+        posterPath = anime.posterImage || '';
+      }
+    } else {
+      const mediaId = parseInt(id);
+      if (!isNaN(mediaId)) {
+        if (type === 'movie') {
+          const movie = await getMovieDetail(mediaId);
+          if (movie) {
+            title = movie.title || '';
+            overview = movie.overview || '';
+            posterPath = movie.poster_path ? `https://image.tmdb.org/t/p/w780${movie.poster_path}` : '';
+          }
+        } else if (type === 'tv' || type === 'anime') {
+          const tv = await getTVShowDetail(mediaId);
+          if (tv) {
+            title = tv.name || '';
+            overview = tv.overview || '';
+            posterPath = tv.poster_path ? `https://image.tmdb.org/t/p/w780${tv.poster_path}` : '';
+          }
+        }
+      }
+    }
+
+    if (type === 'anime' && !title) {
+      const mediaId = parseInt(id);
+      if (!isNaN(mediaId)) {
+        const anime = await getAnimeDetail(mediaId);
+        if (anime) {
+          title = anime.title || '';
+          overview = anime.synopsis || '';
+          posterPath = anime.images?.jpg?.large_image_url || '';
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Metadata resolver error:', error);
+  }
+
+  return { title, overview, posterPath };
+}
+
+export async function generateMetadata({ params }: WatchPageProps): Promise<Metadata> {
+  const resolvedParams = await params;
+  const { type, id } = resolvedParams;
+
+  const info = await getMediaInfo(type, id);
+  if (!info.title) {
+    return {
+      title: 'Watch Free Streams | AloneTV',
+      description: 'Stream movies, TV shows, and anime in HD quality for free.',
+    };
+  }
+
+  const cleanDescription = info.overview.slice(0, 160) + (info.overview.length > 160 ? '...' : '');
+
+  return {
+    title: `Watch ${info.title} Free Online in 4K | AloneTV`,
+    description: cleanDescription || `Stream ${info.title} in HD quality with multi-language audio dubs and translated subtitles on AloneTV.`,
+    keywords: [info.title, `watch ${info.title}`, `stream ${info.title} free`, type, '4k streaming', 'AloneTV'],
+    alternates: {
+      canonical: `https://alonetv.com/watch/${type}/${id}`,
+    },
+    openGraph: {
+      title: `Watch ${info.title} Free Online in 4K | AloneTV`,
+      description: cleanDescription,
+      type: 'video.other',
+      images: info.posterPath ? [{ url: info.posterPath }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `Watch ${info.title} Free Online in 4K | AloneTV`,
+      description: cleanDescription,
+      images: info.posterPath ? [info.posterPath] : [],
+    },
+  };
 }
 
 export default async function WatchPage({ params }: WatchPageProps) {
@@ -249,25 +364,42 @@ export default async function WatchPage({ params }: WatchPageProps) {
     notFound();
   }
 
+  const mediaSchema = {
+    "@context": "https://schema.org",
+    "@type": type === 'movie' ? 'Movie' : 'TVSeries',
+    "name": title,
+    "description": overview,
+    "image": posterPath ? (posterPath.startsWith('http') ? posterPath : `https://image.tmdb.org/t/p/w780${posterPath}`) : undefined,
+    "dateCreated": releaseDate,
+    "genre": genres.map(g => g.name),
+    "actor": cast.slice(0, 5).map(c => ({
+      "@type": "Person",
+      "name": c.name
+    }))
+  };
+
   return (
-    <WatchPageClient
-      type={type}
-      id={id}
-      tmdbId={tmdbId || id}
-      imdbId={imdbId}
-      title={title}
-      posterPath={posterPath}
-      backdropPath={backdropPath}
-      overview={overview}
-      voteAverage={voteAverage}
-      releaseDate={releaseDate}
-      genres={genres}
-      cast={cast}
-      similar={similar}
-      seasons={seasons}
-      isAnime={type === 'anime'}
-      originalLanguage={originalLanguage}
-      belongsToCollection={belongsToCollection}
-    />
+    <>
+      <JsonLd schema={mediaSchema} />
+      <WatchPageClient
+        type={type}
+        id={id}
+        tmdbId={tmdbId || id}
+        imdbId={imdbId}
+        title={title}
+        posterPath={posterPath}
+        backdropPath={backdropPath}
+        overview={overview}
+        voteAverage={voteAverage}
+        releaseDate={releaseDate}
+        genres={genres}
+        cast={cast}
+        similar={similar}
+        seasons={seasons}
+        isAnime={type === 'anime'}
+        originalLanguage={originalLanguage}
+        belongsToCollection={belongsToCollection}
+      />
+    </>
   );
 }

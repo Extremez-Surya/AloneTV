@@ -1,6 +1,26 @@
+import type { Metadata } from 'next';
 import HeroBanner from '@/components/layout/HeroBanner';
 import CollectionRail from '@/components/content/CollectionRail';
 import { getTVPageModel } from '@/lib/ott-collections';
+
+export const metadata: Metadata = {
+  title: 'TV Shows Catalog - Watch HD Series Online | AloneTV',
+  description: 'Stream popular TV series, Korean dramas, reality shows, and talk shows in stunning quality. Access unlimited seasons and episodes for free.',
+  keywords: ['tv shows', 'stream series', 'watch tv online', 'k-dramas', 'free tv shows', 'AloneTV series'],
+  alternates: {
+    canonical: 'https://alonetv.com/tv',
+  },
+  openGraph: {
+    title: 'TV Shows Catalog - Watch HD Series Online | AloneTV',
+    description: 'Stream popular TV series, Korean dramas, reality shows, and talk shows in stunning quality. Access unlimited seasons and episodes for free.',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'TV Shows Catalog - Watch HD Series Online | AloneTV',
+    description: 'Stream popular TV series, Korean dramas, reality shows, and talk shows in stunning quality. Access unlimited seasons and episodes for free.',
+  },
+};
 
 export default async function TVShowsPage() {
   const model = await getTVPageModel();

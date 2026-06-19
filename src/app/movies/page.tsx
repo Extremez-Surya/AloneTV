@@ -1,6 +1,26 @@
+import type { Metadata } from 'next';
 import HeroBanner from '@/components/layout/HeroBanner';
 import CollectionRail from '@/components/content/CollectionRail';
 import { getMoviesPageModel } from '@/lib/ott-collections';
+
+export const metadata: Metadata = {
+  title: 'Movies Catalog - Stream Free 4K Movies | AloneTV',
+  description: 'Stream Bollywood hits, Hollywood blockbusters, action, thriller, and regional cinema in stunning 4K quality. Watch unlimited movies for free.',
+  keywords: ['movies', 'stream movies', '4k movies', 'bollywood movies', 'free movies online', 'AloneTV movies'],
+  alternates: {
+    canonical: 'https://alonetv.com/movies',
+  },
+  openGraph: {
+    title: 'Movies Catalog - Stream Free 4K Movies | AloneTV',
+    description: 'Stream Bollywood hits, Hollywood blockbusters, action, thriller, and regional cinema in stunning 4K quality. Watch unlimited movies for free.',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Movies Catalog - Stream Free 4K Movies | AloneTV',
+    description: 'Stream Bollywood hits, Hollywood blockbusters, action, thriller, and regional cinema in stunning 4K quality. Watch unlimited movies for free.',
+  },
+};
 
 export default async function MoviesPage() {
   const model = await getMoviesPageModel();

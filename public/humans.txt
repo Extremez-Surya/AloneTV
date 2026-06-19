@@ -1,0 +1,14 @@
+/* TEAM */
+Developer: AloneTV Team
+Site: https://alonetv.com
+
+/* THANKS */
+The Movie Database (TMDB) API
+Jikan MAL API
+TVMaze API
+Kitsu API
+
+/* SITE */
+Standards: HTML5, CSS3, ESNext
+Components: React 19, Next.js 16
+Software Stack: Supabase, Video.js, Zustand, Tailwind CSS, Framer Motion

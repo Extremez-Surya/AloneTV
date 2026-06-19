@@ -31,12 +31,12 @@ export default function AnimeCard({ anime, index }: AnimeCardProps) {
           )}
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
-            <button className="w-full py-2 bg-accent-purple text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2">
+            <div className="w-full py-2 bg-accent-purple text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
               </svg>
               Watch
-            </button>
+            </div>
           </div>
 
           {anime.score && (

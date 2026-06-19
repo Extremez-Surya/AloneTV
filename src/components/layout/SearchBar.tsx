@@ -103,6 +103,9 @@ export default function SearchBar() {
       {/* Search Button */}
       <button
         onClick={() => setIsOpen(true)}
+        aria-label="Open search catalog"
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
         className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-gray-400 hover:text-white transition-colors"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -141,6 +144,7 @@ export default function SearchBar() {
                     value={query}
                     onChange={e => setQuery(e.target.value)}
                     placeholder="Search movies, TV shows, anime..."
+                    aria-label="Search movies, TV shows, anime"
                     className="w-full pl-12 pr-12 py-4 bg-bg-card border border-white/10 rounded-2xl text-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-purple"
                   />
                   {isLoading && (
@@ -167,7 +171,7 @@ export default function SearchBar() {
                             {getImageUrl(result.poster_path) ? (
                               <img
                                 src={getImageUrl(result.poster_path)!}
-                                alt=""
+                                alt={`${result.title || result.name || 'Media'} poster`}
                                 className="w-12 h-16 object-cover rounded-lg"
                               />
                             ) : (

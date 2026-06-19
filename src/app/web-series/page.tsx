@@ -4,8 +4,22 @@ import CollectionRail from '@/components/content/CollectionRail';
 import { getWebSeriesPageModel } from '@/lib/ott-collections';
 
 export const metadata: Metadata = {
-  title: 'Web Series',
-  description: 'Browse serialized TV stories and web series in one dedicated destination.',
+  title: 'Web Series Catalog - Stream Free Serialized Stories | AloneTV',
+  description: 'Stream popular web series, serialized tv dramas, and streaming originals in high quality. Binge entire seasons for free without registration.',
+  keywords: ['web series', 'stream web series', 'serialized stories', 'free web series', 'binge watch shows'],
+  alternates: {
+    canonical: 'https://alonetv.com/web-series',
+  },
+  openGraph: {
+    title: 'Web Series Catalog - Stream Free Serialized Stories | AloneTV',
+    description: 'Stream popular web series, serialized tv dramas, and streaming originals in high quality. Binge entire seasons for free without registration.',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Web Series Catalog - Stream Free Serialized Stories | AloneTV',
+    description: 'Stream popular web series, serialized tv dramas, and streaming originals in high quality. Binge entire seasons for free without registration.',
+  },
 };
 
 export default async function WebSeriesPage() {
