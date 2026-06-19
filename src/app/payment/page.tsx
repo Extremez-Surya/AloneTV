@@ -230,7 +230,7 @@ function PaymentPageContent() {
                   </div>
                 )}
               </div>
-
+            </div>
 
             {/* Submit Button */}
             <button
@@ -241,7 +241,7 @@ function PaymentPageContent() {
               Continue to Payment (Scan QR)
             </button>
           </div>
-        : null)}
+        ) : null}
 
         {/* Step 2: QR scan page */}
         {checkoutStep === 'qr' ? (
@@ -317,7 +317,7 @@ function PaymentPageContent() {
               </button>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Step 3: Success Screen */}
         {checkoutStep === 'success' && (
