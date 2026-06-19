@@ -86,3 +86,44 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    
+    // Check executing user and verify permanent admin email
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (user.email !== 'theextremez2.0@gmail.com') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { paymentId, email, status = 'success' } = body;
+
+    if (!paymentId && !email) {
+      return NextResponse.json({ error: 'Missing paymentId or email parameter' }, { status: 400 });
+    }
+
+    let query = supabase.from('payments').update({ status });
+    if (paymentId) {
+      query = query.eq('id', paymentId);
+    } else if (email) {
+      query = query.eq('email', email).eq('status', 'pending');
+    }
+
+    const { data, error } = await query.select();
+    if (error) throw error;
+
+    return NextResponse.json({ success: true, payments: data });
+  } catch (error: any) {
+    console.error('Admin payments PATCH error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to update payment status' },
+      { status: 500 }
+    );
+  }
+}

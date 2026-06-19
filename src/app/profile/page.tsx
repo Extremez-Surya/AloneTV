@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
 import { syncUserProfile, updatePremiumStatus, updateAdminStatus } from '@/lib/supabase/profile';
+import PremiumUpgradeModal from '@/components/video/PremiumUpgradeModal';
 
 const AVATARS = [
   { id: 'anime', name: 'Anime Hero', url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=150&auto=format&fit=crop&q=60' },
@@ -26,6 +27,7 @@ export default function ProfilePage() {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(true);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   const loadData = async () => {
     try {
@@ -825,12 +827,7 @@ export default function ProfilePage() {
                       ) : (
                         <button
                           type="button"
-                          onClick={async () => {
-                            const updated = await updatePremiumStatus(true);
-                            if (updated) {
-                              setUser(prev => ({ ...prev, is_premium: true }));
-                            }
-                          }}
+                          onClick={() => setIsUpgradeModalOpen(true)}
                           className="w-full py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider bg-gradient-to-r from-amber-500 via-purple-600 to-accent-purple hover:opacity-95 text-white shadow-lg shadow-purple-500/30 transition-all border border-purple-500/40"
                         >
                           Upgrade to Premium
@@ -952,6 +949,12 @@ export default function ProfilePage() {
           </motion.div>
         </div>
       )}
+
+      {/* Premium Upgrade Modal */}
+      <PremiumUpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+      />
     </div>
   );
 }

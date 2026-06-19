@@ -7,6 +7,8 @@ import { getAllVideoSources, type VideoSource } from '@/lib/api/videoSources';
 import VideoPlayer from '@/components/video/VideoPlayer';
 import SeasonSelector from '@/components/video/SeasonSelector';
 import { getLocalProfile, syncUserProfile, updatePremiumStatus } from '@/lib/supabase/profile';
+import { createClient } from '@/lib/supabase/client';
+import PremiumUpgradeModal from '@/components/video/PremiumUpgradeModal';
 import ContentCard from '@/components/content/ContentCard';
 import { 
   getPreferredAudioLanguage, 
@@ -105,6 +107,10 @@ export default function WatchPageClient({
   const [isCheckingPremium, setIsCheckingPremium] = useState(true);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+  const handleOpenUpgradeModal = () => {
+    setIsUpgradeModalOpen(true);
+  };
 
   // Sync premium status on mount
   useEffect(() => {
@@ -610,7 +616,7 @@ export default function WatchPageClient({
                         </p>
                       </div>
                       <button
-                        onClick={() => setIsUpgradeModalOpen(true)}
+                        onClick={handleOpenUpgradeModal}
                         className="px-4 py-2 bg-gradient-to-r from-amber-500 to-purple-600 hover:opacity-90 text-white text-xs font-bold font-mono uppercase tracking-wider rounded-xl shadow-lg shadow-purple-500/25 border border-purple-500/30 transition-all shrink-0"
                       >
                         Unlock Full Video
@@ -864,7 +870,7 @@ export default function WatchPageClient({
               <button
                 onClick={() => {
                   if (!isPremium) {
-                    setIsUpgradeModalOpen(true);
+                    handleOpenUpgradeModal();
                     return;
                   }
                   const room = prompt('Enter a room code to join, or leave empty to create a new one:');
@@ -1104,77 +1110,11 @@ export default function WatchPageClient({
       </div>
 
       {/* Upgrade to Premium Modal */}
-      {isUpgradeModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="w-full max-w-md bg-gradient-to-b from-[#130d2b] to-[#0a0715] border border-purple-500/30 p-6 rounded-2xl shadow-level-4 text-left relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-            
-            <div className="flex justify-between items-center mb-5 border-b border-white/5 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-amber-500 text-lg">👑</span>
-                <h3 className="text-base font-bold text-white uppercase tracking-wider font-mono">AloneTV Premium</h3>
-              </div>
-              <button 
-                onClick={() => setIsUpgradeModalOpen(false)}
-                className="text-text-muted hover:text-white"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-lg font-bold text-white">Unlock Streaming Access</h4>
-                <p className="text-xs text-text-muted leading-relaxed mt-1">
-                  Enjoy the full duration of "{title}" in high quality 1080p and 4K resolution. Upgrade now to unlock this title and thousands of others.
-                </p>
-              </div>
-
-              {/* Perks list */}
-              <div className="space-y-2 py-3 border-y border-white/5 font-mono text-xs text-gray-300">
-                <div className="flex items-center gap-2">
-                  <span className="text-purple-500 font-bold text-sm">✓</span>
-                  <span>Unlimited 4K/1080p Streaming</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-purple-500 font-bold text-sm">✓</span>
-                  <span>Multiple Streaming Channels</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-purple-500 font-bold text-sm">✓</span>
-                  <span>Watch Party Chat Room Integration</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-purple-500 font-bold text-sm">✓</span>
-                  <span>AudioDub Parameter Selectors</span>
-                </div>
-              </div>
-
-              <div className="pt-2 space-y-2">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const profile = await updatePremiumStatus(true);
-                    if (profile) {
-                      setIsPremium(true);
-                      setIsUpgradeModalOpen(false);
-                      window.dispatchEvent(new Event('alonetv_user_changed'));
-                    }
-                  }}
-                  className="w-full py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider bg-gradient-to-r from-amber-500 via-purple-600 to-accent-purple text-white hover:opacity-95 transition-all shadow-lg shadow-purple-500/20 border border-purple-500/30"
-                >
-                  Activate Premium Plan
-                </button>
-                <p className="text-[10px] text-center text-text-muted">
-                  Instant activation. Cancel anytime from your profile settings page.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <PremiumUpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        mediaTitle={title}
+      />
     </div>
   );
 }

@@ -188,6 +188,73 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleApprovePayment = async (email: string, userId?: string | null, paymentId?: string | null) => {
+    try {
+      if (currentUser?.demo) {
+        // Handle locally for Demo Mode
+        const stored = JSON.parse(localStorage.getItem('alonetv_mock_payments') || '[]');
+        const updated = stored.map((pay: any) => {
+          if (paymentId && pay.id === paymentId) {
+            return { ...pay, status: 'success' };
+          }
+          if (email && pay.email === email && pay.status === 'pending') {
+            return { ...pay, status: 'success' };
+          }
+          return pay;
+        });
+        localStorage.setItem('alonetv_mock_payments', JSON.stringify(updated));
+        
+        // Upgrade the profile in demo mode as well
+        if (userId) {
+          await adminTogglePremium(userId, true);
+        } else {
+          // Look up matching mock user profile
+          const mockProfiles = JSON.parse(localStorage.getItem('alonetv_mock_profiles') || '[]');
+          const match = mockProfiles.find((u: any) => u.email === email || u.username === email);
+          if (match) {
+            await adminTogglePremium(match.id, true);
+          }
+        }
+        
+        loadPayments();
+        loadUsers();
+        alert('Payment approved successfully! Premium membership granted.');
+      } else {
+        // Supabase mode - update payment row(s) to success
+        const body: any = {};
+        if (paymentId) body.paymentId = paymentId;
+        else if (email) body.email = email;
+        
+        const res = await fetch('/api/admin/payments', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        if (res.ok) {
+          // Trigger premium upgrade in profiles table
+          if (userId) {
+            await adminTogglePremium(userId, true);
+          } else {
+            // Find matched user profile in state to get user ID
+            const matchedUser = profiles.find(u => u.email === email || u.username === email);
+            if (matchedUser) {
+              await adminTogglePremium(matchedUser.id, true);
+            }
+          }
+          loadPayments();
+          loadUsers();
+          alert('Payment approved successfully! Premium membership granted.');
+        } else {
+          alert('Failed to update database payment logs.');
+        }
+      }
+    } catch (err) {
+      console.error('Failed to approve transaction:', err);
+      alert('Error approving payment.');
+    }
+  };
+
   const handleSimulatePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!simEmail.trim()) return;
@@ -429,12 +496,13 @@ export default function AdminDashboardPage() {
                           <th className="py-2.5">Amount</th>
                           <th className="py-2.5">Status</th>
                           <th className="py-2.5">Date</th>
+                          <th className="py-2.5 text-center">Action</th>
                         </tr>
                       </thead>
                       <tbody>
                         {payments.length === 0 ? (
                           <tr>
-                            <td colSpan={4} className="py-6 text-center text-text-muted font-mono">No logged payments</td>
+                            <td colSpan={5} className="py-6 text-center text-text-muted font-mono">No logged payments</td>
                           </tr>
                         ) : (
                           payments.slice(0, 5).map((pay) => (
@@ -451,6 +519,16 @@ export default function AdminDashboardPage() {
                               </td>
                               <td className="py-2.5 text-text-muted font-mono">
                                 {new Date(pay.created_at).toLocaleDateString()}
+                              </td>
+                              <td className="py-2.5 text-center">
+                                {pay.status === 'pending' && (
+                                  <button
+                                    onClick={() => handleApprovePayment(pay.email, pay.user_id, pay.id)}
+                                    className="px-2 py-0.5 bg-green-500 hover:bg-green-600 text-white rounded border border-green-500/30 font-mono text-[9px] font-bold uppercase tracking-wider transition-colors"
+                                  >
+                                    Approve
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           ))
@@ -528,51 +606,73 @@ export default function AdminDashboardPage() {
                           </td>
                         </tr>
                       ) : (
-                        filteredProfiles.map((p) => (
-                          <tr key={p.id} className="border-b border-border/30 hover:bg-white/5 transition-colors">
-                            <td className="p-4 font-semibold text-white font-mono">{p.username}</td>
-                            <td className="p-4 text-text-muted font-mono">{p.email || 'N/A'}</td>
-                            <td className="p-4 text-text-muted font-mono">
-                              {p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'}
-                            </td>
-                            {/* Toggle switches */}
-                            <td className="p-4 text-center">
-                              <button
-                                type="button"
-                                onClick={() => handleTogglePremium(p.id, p.is_premium)}
-                                className={`px-2.5 py-1 rounded font-mono text-[10px] font-bold uppercase tracking-wider border transition-all ${
-                                  p.is_premium
-                                    ? 'bg-amber-500/10 border-amber-500/35 text-amber-500'
-                                    : 'bg-white/5 border-white/10 text-gray-500'
-                                }`}
-                              >
-                                {p.is_premium ? '👑 PREMIUM' : 'FREE'}
-                              </button>
-                            </td>
-                            <td className="p-4 text-center">
-                              <button
-                                type="button"
-                                onClick={() => handleToggleAdmin(p.id, p.is_admin)}
-                                className={`px-2.5 py-1 rounded font-mono text-[10px] font-bold uppercase tracking-wider border transition-all ${
-                                  p.is_admin
-                                    ? 'bg-purple-500/10 border-purple-500/35 text-purple-400'
-                                    : 'bg-white/5 border-white/10 text-gray-500'
-                                }`}
-                              >
-                                {p.is_admin ? 'ADMIN' : 'MEMBER'}
-                              </button>
-                            </td>
-                            <td className="p-4 text-center">
-                              <button
-                                onClick={() => handleDeleteUser(p.id)}
-                                disabled={p.id === currentUser?.id}
-                                className="px-2 py-1 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white rounded border border-red-500/20 font-mono text-[10px] transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        ))
+                        filteredProfiles.map((p) => {
+                          const pendingPayments = payments.filter(pay => pay.email === p.email && pay.status === 'pending');
+                          const hasPendingPayment = pendingPayments.length > 0;
+                          return (
+                            <tr key={p.id} className="border-b border-border/30 hover:bg-white/5 transition-colors">
+                              <td className="p-4 font-semibold text-white font-mono flex items-center gap-2">
+                                {p.username}
+                                {hasPendingPayment && !p.is_premium && (
+                                  <span className="inline-flex h-2 w-2 rounded-full bg-yellow-500 animate-ping" title="Has pending payment!" />
+                                )}
+                              </td>
+                              <td className="p-4 text-text-muted font-mono">
+                                {p.email || 'N/A'}
+                                {hasPendingPayment && !p.is_premium && (
+                                  <span className="block text-[9px] text-yellow-500 font-bold uppercase tracking-wider font-mono">⚠️ Paid (Pending Approval)</span>
+                                )}
+                              </td>
+                              <td className="p-4 text-text-muted font-mono">
+                                {p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'}
+                              </td>
+                              {/* Toggle switches */}
+                              <td className="p-4 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleTogglePremium(p.id, p.is_premium)}
+                                  className={`px-2.5 py-1 rounded font-mono text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                                    p.is_premium
+                                      ? 'bg-amber-500/10 border-amber-500/35 text-amber-500'
+                                      : 'bg-white/5 border-white/10 text-gray-500'
+                                  }`}
+                                >
+                                  {p.is_premium ? '👑 PREMIUM' : 'FREE'}
+                                </button>
+                              </td>
+                              <td className="p-4 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleAdmin(p.id, p.is_admin)}
+                                  className={`px-2.5 py-1 rounded font-mono text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                                    p.is_admin
+                                      ? 'bg-purple-500/10 border-purple-500/35 text-purple-400'
+                                      : 'bg-white/5 border-white/10 text-gray-500'
+                                  }`}
+                                >
+                                  {p.is_admin ? 'ADMIN' : 'MEMBER'}
+                                </button>
+                              </td>
+                              <td className="p-4 text-center flex items-center justify-center gap-2">
+                                {hasPendingPayment && !p.is_premium && (
+                                  <button
+                                    onClick={() => handleApprovePayment(p.email || '', p.id)}
+                                    className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded border border-green-500/30 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors"
+                                  >
+                                    Approve
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleDeleteUser(p.id)}
+                                  disabled={p.id === currentUser?.id}
+                                  className="px-2 py-1 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white rounded border border-red-500/20 font-mono text-[10px] transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -599,19 +699,20 @@ export default function AdminDashboardPage() {
                           <th className="p-4">Amount</th>
                           <th className="p-4">Plan</th>
                           <th className="p-4">Status</th>
+                          <th className="p-4 text-center">Action</th>
                         </tr>
                       </thead>
                       <tbody>
                         {isLoadingPayments ? (
                           <tr>
-                            <td colSpan={5} className="p-8 text-center text-text-muted">
+                            <td colSpan={6} className="p-8 text-center text-text-muted">
                               <div className="w-6 h-6 border-2 border-accent-purple border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                               <span>Loading payment logs...</span>
                             </td>
                           </tr>
                         ) : payments.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="p-8 text-center text-text-muted font-mono">No payment logs.</td>
+                            <td colSpan={6} className="p-8 text-center text-text-muted font-mono">No payment logs.</td>
                           </tr>
                         ) : (
                           payments.map((p) => (
@@ -627,6 +728,16 @@ export default function AdminDashboardPage() {
                                 }`}>
                                   {p.status}
                                 </span>
+                              </td>
+                              <td className="p-4 text-center">
+                                {p.status === 'pending' && (
+                                  <button
+                                    onClick={() => handleApprovePayment(p.email, p.user_id, p.id)}
+                                    className="px-2 py-0.5 bg-green-500 hover:bg-green-600 text-white rounded border border-green-500/30 text-[9px] font-bold uppercase tracking-wider transition-colors"
+                                  >
+                                    Approve
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           ))
