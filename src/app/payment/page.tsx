@@ -224,12 +224,12 @@ function PaymentPageContent() {
                 <div className="flex items-center gap-2"><span className="text-purple-500 font-bold">✓</span><span>{PLAN_DATA[selectedPlan].resolution}</span></div>
                 <div className="flex items-center gap-2"><span className="text-purple-500 font-bold">✓</span><span>Multiple devices (same household)</span></div>
                 {selectedPlan === 'premium' && (
-                <div className="flex items-center gap-2">
-                  <span className="text-purple-500 font-bold">✓</span>
-                  <span>Spatial audio (immersive sound)</span>
-            </div>
-        : null)}
-            </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-purple-500 font-bold">✓</span>
+                    <span>Spatial audio (immersive sound)</span>
+                  </div>
+                )}
+              </div>
 
 
             {/* Submit Button */}
@@ -241,7 +241,7 @@ function PaymentPageContent() {
               Continue to Payment (Scan QR)
             </button>
           </div>
-        )}
+        : null)}
 
         {/* Step 2: QR scan page */}
         {checkoutStep === 'qr' ? (
