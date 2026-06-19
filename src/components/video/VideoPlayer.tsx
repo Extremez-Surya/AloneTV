@@ -456,7 +456,7 @@ export default function VideoPlayer({ sources, title, backdropUrl, onNextEpisode
         url.searchParams.delete('t');
       }
       navigator.clipboard.writeText(url.toString());
-      alert(`Group Watch sync link copied to clipboard!\nShare this with friends to watch together starting at ${seconds > 0 ? `${Math.floor(seconds/60)}m ${seconds%60}s` : 'the beginning'}.`);
+      alert(`Share link copied to clipboard!\nSend this link to share starting at ${seconds > 0 ? `${Math.floor(seconds/60)}m ${seconds%60}s` : 'the beginning'}.`);
     } catch (err) {
       console.error('Failed to share:', err);
     }

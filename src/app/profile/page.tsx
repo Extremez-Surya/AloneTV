@@ -789,7 +789,7 @@ export default function ProfilePage() {
                         {user.is_premium ? 'Premium Access Active' : 'Unlock AloneTV Premium'}
                       </h4>
                       <p className="text-xs text-text-muted leading-relaxed mt-1">
-                        Unlock high quality streaming, watch party synchronization, custom playlists, zero advertisements, and multi-language dubs.
+                        Unlock high quality streaming, custom playlists, zero advertisements, offline downloads, and multi-language dubs.
                       </p>
                     </div>
 

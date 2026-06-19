@@ -29,7 +29,6 @@ interface Plan {
   simultaneousStreams: number;
   downloadDevices: number;
   spatialAudio: boolean;
-  watchParty: boolean;
   adFree: boolean;
   offlineDownloads: boolean;
   earlyAccess: boolean;
@@ -51,7 +50,6 @@ const PLANS: Plan[] = [
     simultaneousStreams: 1,
     downloadDevices: 1,
     spatialAudio: false,
-    watchParty: false,
     adFree: true,
     offlineDownloads: true,
     earlyAccess: false,
@@ -70,7 +68,6 @@ const PLANS: Plan[] = [
     simultaneousStreams: 1,
     downloadDevices: 1,
     spatialAudio: false,
-    watchParty: true,
     adFree: true,
     offlineDownloads: true,
     earlyAccess: false,
@@ -90,7 +87,6 @@ const PLANS: Plan[] = [
     simultaneousStreams: 2,
     downloadDevices: 2,
     spatialAudio: false,
-    watchParty: true,
     adFree: true,
     offlineDownloads: true,
     earlyAccess: false,
@@ -109,7 +105,6 @@ const PLANS: Plan[] = [
     simultaneousStreams: 4,
     downloadDevices: 6,
     spatialAudio: true,
-    watchParty: true,
     adFree: true,
     offlineDownloads: true,
     earlyAccess: true,
@@ -126,7 +121,6 @@ const FEATURE_ROWS: { key: keyof Plan; label: string }[] = [
   { key: 'simultaneousStreams', label: 'Streams at same time' },
   { key: 'downloadDevices', label: 'Download devices' },
   { key: 'adFree', label: 'Ad-free viewing' },
-  { key: 'watchParty', label: 'Watch Party rooms' },
   { key: 'offlineDownloads', label: 'Offline downloads' },
   { key: 'spatialAudio', label: 'Spatial audio (immersive)' },
   { key: 'earlyAccess', label: 'Early access & premieres' },
@@ -320,7 +314,7 @@ function PaymentPageContent() {
         <p className="text-[11px] text-text-muted/70 leading-relaxed mb-8 max-w-3xl font-sans">
           HD (720p), Full HD (1080p), Ultra HD (4K) and HDR availability subject to your internet service and device capabilities.
           Not all content is available in all resolutions. Only people who live with you may use your account.
-          Watch Party rooms require an active premium plan. Live events may include ads.
+          Live events may include ads.
         </p>
 
         {/* Next button */}
