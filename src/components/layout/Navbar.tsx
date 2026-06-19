@@ -28,6 +28,7 @@ export default function Navbar() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -45,6 +46,7 @@ export default function Navbar() {
       if (profile) {
         setIsLoggedIn(true);
         setIsPremium(Boolean(profile.is_premium));
+        setIsAdmin(Boolean(profile.is_admin));
       }
     } catch {
       // ignore
@@ -55,9 +57,11 @@ export default function Navbar() {
       if (profile) {
         setIsLoggedIn(true);
         setIsPremium(Boolean(profile.is_premium));
+        setIsAdmin(Boolean(profile.is_admin));
       } else {
         setIsLoggedIn(false);
         setIsPremium(false);
+        setIsAdmin(false);
       }
     });
 
@@ -83,9 +87,11 @@ export default function Navbar() {
       if (profile) {
         setIsLoggedIn(true);
         setIsPremium(Boolean(profile.is_premium));
+        setIsAdmin(Boolean(profile.is_admin));
       } else {
         setIsLoggedIn(false);
         setIsPremium(false);
+        setIsAdmin(false);
       }
     };
     window.addEventListener('alonetv_user_changed', handleUserSync);
@@ -195,6 +201,16 @@ export default function Navbar() {
               </span>
             )}
 
+            {/* Admin Dashboard shortcut */}
+            {isLoggedIn && isAdmin && (
+              <Link
+                href="/admin"
+                className="hidden sm:inline-flex items-center justify-center px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-wider rounded-md bg-purple-500/15 border border-purple-500/25 text-purple-400 hover:bg-purple-500 hover:text-white transition-all font-mono h-7 shrink-0"
+              >
+                🛡️ Admin
+              </Link>
+            )}
+
             {/* User Menu / Profile */}
             <Link
               href="/profile"
@@ -247,8 +263,17 @@ export default function Navbar() {
               {isLoggedIn ? (
                 <div className="pt-2.5 border-t border-border flex flex-col gap-1.5 text-left font-mono">
                   <div className="text-[10px] text-text-muted uppercase tracking-wider px-3">
-                    Status: {isPremium ? 'Premium Member 👑' : 'Free Watcher'}
+                    Status: {isAdmin ? 'Admin 🛡️' : isPremium ? 'Premium Member 👑' : 'Free Watcher'}
                   </div>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="w-full py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-xs font-bold uppercase tracking-wider text-white text-center mt-1"
+                    >
+                      Admin Dashboard
+                    </Link>
+                  )}
                   <Link
                     href="/profile"
                     onClick={() => setIsMobileMenuOpen(false)}
