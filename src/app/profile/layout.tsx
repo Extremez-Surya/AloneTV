@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     follow: false,
   },
   alternates: {
-    canonical: 'https://alonetv.com/profile',
+    canonical: 'https://vinaytv.vercel.app/profile',
   },
 };
 

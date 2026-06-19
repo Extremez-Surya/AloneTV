@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: 'Watch popular anime subbed and dubbed in HD quality. Access simulcasts, trending series, and classic movies for free on AloneTV.',
   keywords: ['anime', 'watch anime', 'free anime online', 'anime subbed', 'anime dubbed', 'AloneTV anime'],
   alternates: {
-    canonical: 'https://alonetv.com/anime',
+    canonical: 'https://vinaytv.vercel.app/anime',
   },
   openGraph: {
     title: 'Anime Catalog - Stream Free Anime Online | AloneTV',

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: 'Stream popular TV series, Korean dramas, reality shows, and talk shows in stunning quality. Access unlimited seasons and episodes for free.',
   keywords: ['tv shows', 'stream series', 'watch tv online', 'k-dramas', 'free tv shows', 'AloneTV series'],
   alternates: {
-    canonical: 'https://alonetv.com/tv',
+    canonical: 'https://vinaytv.vercel.app/tv',
   },
   openGraph: {
     title: 'TV Shows Catalog - Watch HD Series Online | AloneTV',

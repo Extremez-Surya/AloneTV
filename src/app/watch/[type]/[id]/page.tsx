@@ -119,7 +119,7 @@ export async function generateMetadata({ params }: WatchPageProps): Promise<Meta
     description: cleanDescription || `Stream ${info.title} in HD quality with multi-language audio dubs and translated subtitles on AloneTV.`,
     keywords: [info.title, `watch ${info.title}`, `stream ${info.title} free`, type, '4k streaming', 'AloneTV'],
     alternates: {
-      canonical: `https://alonetv.com/watch/${type}/${id}`,
+      canonical: `https://vinaytv.vercel.app/watch/${type}/${id}`,
     },
     openGraph: {
       title: `Watch ${info.title} Free Online in 4K | AloneTV`,

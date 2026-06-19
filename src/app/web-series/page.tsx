@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: 'Stream popular web series, serialized tv dramas, and streaming originals in high quality. Binge entire seasons for free without registration.',
   keywords: ['web series', 'stream web series', 'serialized stories', 'free web series', 'binge watch shows'],
   alternates: {
-    canonical: 'https://alonetv.com/web-series',
+    canonical: 'https://vinaytv.vercel.app/web-series',
   },
   openGraph: {
     title: 'Web Series Catalog - Stream Free Serialized Stories | AloneTV',

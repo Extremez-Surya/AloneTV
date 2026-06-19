@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     follow: true,
   },
   alternates: {
-    canonical: 'https://alonetv.com/search',
+    canonical: 'https://vinaytv.vercel.app/search',
   },
   openGraph: {
     title: 'Search Movies, TV Shows & Anime | AloneTV',

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     follow: true,
   },
   alternates: {
-    canonical: 'https://alonetv.com/playlist',
+    canonical: 'https://vinaytv.vercel.app/playlist',
   },
   openGraph: {
     title: 'Shared Cine-Deck Playlists | AloneTV',

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: 'Stream Bollywood hits, Hollywood blockbusters, action, thriller, and regional cinema in stunning 4K quality. Watch unlimited movies for free.',
   keywords: ['movies', 'stream movies', '4k movies', 'bollywood movies', 'free movies online', 'AloneTV movies'],
   alternates: {
-    canonical: 'https://alonetv.com/movies',
+    canonical: 'https://vinaytv.vercel.app/movies',
   },
   openGraph: {
     title: 'Movies Catalog - Stream Free 4K Movies | AloneTV',

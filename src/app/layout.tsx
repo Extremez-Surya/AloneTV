@@ -56,8 +56,8 @@ const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "AloneTV",
-  "url": "https://alonetv.com",
-  "logo": "https://alonetv.com/favicon.ico",
+  "url": "https://vinaytv.vercel.app",
+  "logo": "https://vinaytv.vercel.app/favicon.ico",
   "description": "Stream unlimited free movies, TV series, web series, and anime in stunning 4K quality.",
   "sameAs": [
     "https://twitter.com/alonetv",
@@ -69,10 +69,10 @@ const websiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   "name": "AloneTV",
-  "url": "https://alonetv.com",
+  "url": "https://vinaytv.vercel.app",
   "potentialAction": {
     "@type": "SearchAction",
-    "target": "https://alonetv.com/search?q={search_term_string}",
+    "target": "https://vinaytv.vercel.app/search?q={search_term_string}",
     "query-input": "required name=search_term_string"
   }
 };

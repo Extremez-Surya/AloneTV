@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/admin', '/profile', '/api', '/settings', '/search'],
     },
-    sitemap: 'https://alonetv.com/sitemap.xml',
+    sitemap: 'https://vinaytv.vercel.app/sitemap.xml',
   };
 }

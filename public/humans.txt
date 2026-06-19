@@ -1,6 +1,6 @@
 /* TEAM */
 Developer: AloneTV Team
-Site: https://alonetv.com
+Site: https://vinaytv.vercel.app
 
 /* THANKS */
 The Movie Database (TMDB) API
