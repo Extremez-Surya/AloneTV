@@ -160,7 +160,7 @@ function PaymentPageContent() {
       {/* Main card */}
       <div className="relative bg-gradient-to-b from-[#130d2b] to-[#0a0715] border border-purple-500/25 p-6 sm:p-8 rounded-2xl shadow-level-4 text-left overflow-hidden">
         {/* Step 1: Plan Selection */}
-        {checkoutStep === 'plans' && (
+        {checkoutStep === 'plans' ? (
           <div className="space-y-6">
             <div>
               <span className="text-xs uppercase font-mono font-bold tracking-widest text-purple-400">Step 1 of 2</span>
@@ -224,9 +224,12 @@ function PaymentPageContent() {
                 <div className="flex items-center gap-2"><span className="text-purple-500 font-bold">✓</span><span>{PLAN_DATA[selectedPlan].resolution}</span></div>
                 <div className="flex items-center gap-2"><span className="text-purple-500 font-bold">✓</span><span>Multiple devices (same household)</span></div>
                 {selectedPlan === 'premium' && (
-                  <div className="flex items-center gap-2"><span className="text-purple-500 font-bold">✓</span><span>Spatial audio (immersive sound)</span></div>
-                )}
-              </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-purple-500 font-bold">✓</span>
+                  <span>Spatial audio (immersive sound)</span>
+            </div>
+        : null)}
+            </div>
 
 
             {/* Submit Button */}
@@ -241,7 +244,7 @@ function PaymentPageContent() {
         )}
 
         {/* Step 2: QR scan page */}
-        {checkoutStep === 'qr' && (
+        {checkoutStep === 'qr' ? (
           <div className="space-y-6">
             <div>
               <span className="text-xs uppercase font-mono font-bold tracking-widest text-purple-400">Step 2 of 2</span>
