@@ -251,6 +251,7 @@ export default function AdminDashboardPage() {
 
   const [systemOpBusy, setSystemOpBusy] = useState(false);
   const [systemOpError, setSystemOpError] = useState<string | null>(null);
+  const [systemOpNotice, setSystemOpNotice] = useState<string | null>(null);
 
   const handleDeleteUser = async (userId: string) => {
     if (!userId) return;
@@ -314,6 +315,9 @@ export default function AdminDashboardPage() {
   };
 
   const handleSystemAction = async (action: 'clear_payments' | 'clear_profiles' | 'clear_cache' | 'clear_settings' | 'clear_reviews' | 'reset_history') => {
+    setSystemOpError(null);
+    setSystemOpNotice(null);
+    setSystemOpBusy(true);
     if (action === 'clear_payments' || action === 'clear_profiles' || action === 'clear_settings') {
       const confirmText = action === 'clear_profiles' 
         ? '⚠️ DANGER: This will delete ALL user profiles except your admin account. Are you sure?' 
@@ -381,18 +385,26 @@ export default function AdminDashboardPage() {
 
         if (res.ok) {
           const data = await res.json();
-          alert(data.message || 'Operation executed successfully.');
+          const msg = data.message || 'Operation executed successfully.';
+          setSystemOpNotice(msg);
+          alert(msg);
+
           if (action === 'clear_payments') loadPayments();
           if (action === 'clear_profiles') loadUsers();
           if (action === 'clear_settings') loadSettings();
         } else {
           const errData = await res.json().catch(() => ({}));
-          alert(`Operation failed: ${errData.error || 'Server error'}`);
+          const msg = errData.error || 'Server error';
+          setSystemOpError(msg);
+          alert(`Operation failed: ${msg}`);
         }
       }
     } catch (err: any) {
       console.error(err);
-      alert('Error running system operation: ' + (err.message || ''));
+      setSystemOpError(err?.message || 'Error running system operation');
+      alert('Error running system operation: ' + (err?.message || ''));
+    } finally {
+      setSystemOpBusy(false);
     }
   };
 
@@ -712,6 +724,19 @@ FROM auth.users
 ON CONFLICT (id) DO NOTHING;`}
               </pre>
             </details>
+          </div>
+        )}
+
+        {/* System op errors */}
+        {systemOpError && (
+          <div className="mb-6 p-4 rounded-2xl bg-red-950/20 border border-red-500/35 text-red-200 text-xs sm:text-sm font-medium leading-relaxed">
+            ⚠️ {systemOpError}
+          </div>
+        )}
+
+        {systemOpNotice && (
+          <div className="mb-6 p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-200 text-xs sm:text-sm font-medium leading-relaxed">
+            ℹ️ {systemOpNotice}
           </div>
         )}
 
@@ -1195,8 +1220,9 @@ ON CONFLICT (id) DO NOTHING;`}
                     {/* Clear Cache */}
                     <button
                       type="button"
+                      disabled={systemOpBusy}
                       onClick={() => handleSystemAction('clear_cache')}
-                      className="w-full py-2 bg-white/5 border border-white/10 hover:bg-purple-600/15 hover:border-purple-500/30 text-white font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center"
+                      className="w-full py-2 bg-white/5 border border-white/10 hover:bg-purple-600/15 hover:border-purple-500/30 text-white font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center disabled:opacity-50 disabled:pointer-events-none"
                     >
                       <span>⚡ Purge System Cache & Revalidate</span>
                       <span className="text-[9px] text-purple-400">Run Action</span>
@@ -1205,8 +1231,9 @@ ON CONFLICT (id) DO NOTHING;`}
                     {/* Reset local reviews */}
                     <button
                       type="button"
+                      disabled={systemOpBusy}
                       onClick={() => handleSystemAction('clear_reviews')}
-                      className="w-full py-2 bg-white/5 border border-white/10 hover:bg-red-950/20 hover:border-red-500/30 text-red-400 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center"
+                      className="w-full py-2 bg-white/5 border border-white/10 hover:bg-red-950/20 hover:border-red-500/30 text-red-400 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center disabled:opacity-50 disabled:pointer-events-none"
                     >
                       <span>💬 Delete All Local Reviews</span>
                       <span className="text-[9px] text-red-500/60">Destructive</span>
@@ -1215,8 +1242,9 @@ ON CONFLICT (id) DO NOTHING;`}
                     {/* Reset local history */}
                     <button
                       type="button"
+                      disabled={systemOpBusy}
                       onClick={() => handleSystemAction('reset_history')}
-                      className="w-full py-2 bg-white/5 border border-white/10 hover:bg-red-950/20 hover:border-red-500/30 text-red-400 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center"
+                      className="w-full py-2 bg-white/5 border border-white/10 hover:bg-red-950/20 hover:border-red-500/30 text-red-400 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center disabled:opacity-50 disabled:pointer-events-none"
                     >
                       <span>⏳ Reset Browsing History & Playlists</span>
                       <span className="text-[9px] text-red-500/60">Destructive</span>
@@ -1225,8 +1253,9 @@ ON CONFLICT (id) DO NOTHING;`}
                     {/* Clear Payment Logs */}
                     <button
                       type="button"
+                      disabled={systemOpBusy}
                       onClick={() => handleSystemAction('clear_payments')}
-                      className="w-full py-2 bg-white/5 border border-white/10 hover:bg-red-950/30 hover:border-red-500/50 text-red-400 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center shadow-lg"
+                      className="w-full py-2 bg-white/5 border border-white/10 hover:bg-red-950/30 hover:border-red-500/50 text-red-400 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center shadow-lg disabled:opacity-50 disabled:pointer-events-none"
                     >
                       <span>💳 Clear All Billing & Transaction Logs</span>
                       <span className="text-[9px] text-red-500 font-bold">SQL DELETE</span>
@@ -1235,8 +1264,9 @@ ON CONFLICT (id) DO NOTHING;`}
                     {/* Wipe User Accounts */}
                     <button
                       type="button"
+                      disabled={systemOpBusy}
                       onClick={() => handleSystemAction('clear_profiles')}
-                      className="w-full py-2 bg-red-950/10 border border-red-500/25 hover:bg-red-950/45 hover:border-red-500/60 text-red-200 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center shadow-lg"
+                      className="w-full py-2 bg-red-950/10 border border-red-500/25 hover:bg-red-950/45 hover:border-red-500/60 text-red-200 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center shadow-lg disabled:opacity-50 disabled:pointer-events-none"
                     >
                       <span>👥 Wipe Accounts Database (Keep Admin)</span>
                       <span className="text-[9px] text-red-500 font-bold uppercase">SQL DANGER</span>
