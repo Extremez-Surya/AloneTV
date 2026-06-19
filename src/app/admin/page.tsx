@@ -168,10 +168,35 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const loadSettings = async () => {
+    try {
+      if (currentUser?.demo) {
+        const stored = localStorage.getItem('alonetv_demo_settings');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setMaintenanceMode(parsed.maintenance_mode || false);
+          setGlobalNotice(parsed.global_notice || '');
+        }
+      } else {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setMaintenanceMode(data.maintenance_mode || false);
+            setGlobalNotice(data.global_notice || '');
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to load system settings:', err);
+    }
+  };
+
   useEffect(() => {
     if (isAdmin) {
       loadUsers();
       loadPayments();
+      loadSettings();
     }
   }, [isAdmin, activeTab]);
 
@@ -194,14 +219,180 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (confirm('Are you sure you want to delete this user profile?')) {
-      const success = await adminDeleteUser(userId);
-      if (success) {
-        loadUsers();
+  const handleToggleMaintenance = async () => {
+    const newVal = !maintenanceMode;
+    try {
+      if (currentUser?.demo) {
+        localStorage.setItem(
+          'alonetv_demo_settings',
+          JSON.stringify({ maintenance_mode: newVal, global_notice: globalNotice })
+        );
+        setMaintenanceMode(newVal);
+        alert(`Maintenance Mode updated: ${newVal ? 'ENABLED' : 'DISABLED'}`);
       } else {
-        alert('Failed to delete user.');
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ maintenance_mode: newVal })
+        });
+        if (res.ok) {
+          setMaintenanceMode(newVal);
+          alert(`Maintenance Mode updated: ${newVal ? 'ENABLED' : 'DISABLED'}`);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          alert(`Failed to save settings: ${errData.error || 'Server error'}`);
+        }
       }
+    } catch (err) {
+      console.error(err);
+      alert('Error updating maintenance status.');
+    }
+  };
+
+  const [systemOpBusy, setSystemOpBusy] = useState(false);
+  const [systemOpError, setSystemOpError] = useState<string | null>(null);
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!userId) return;
+    if (!confirm('⚠️ Delete this user account? This cannot be undone.')) return;
+
+    try {
+      setSystemOpError(null);
+      if (currentUser?.demo) {
+        // Demo mode: remove from local mock profiles
+        const stored = JSON.parse(localStorage.getItem('alonetv_mock_profiles') || '[]');
+        const updated = stored.filter((p: any) => p.id !== userId);
+        localStorage.setItem('alonetv_mock_profiles', JSON.stringify(updated));
+        const localUser = getLocalProfile();
+        setProfiles(localUser ? [localUser, ...updated] : updated);
+        alert('User deleted locally.');
+        return;
+      }
+
+      // Real Supabase mode: delegate to profiles delete API (existing helper in profile.ts)
+      const success = await adminDeleteUser(userId);
+      if (!success) {
+        setSystemOpError('Failed to delete user.');
+        alert('Failed to delete user.');
+        return;
+      }
+      await loadUsers();
+      alert('User deleted.');
+    } catch (e: any) {
+      setSystemOpError(e?.message || 'Failed to delete user.');
+      alert('Failed to delete user.');
+    }
+  };
+
+  const handleUpdateNotice = async () => {
+    try {
+      if (currentUser?.demo) {
+        localStorage.setItem(
+          'alonetv_demo_settings',
+          JSON.stringify({ maintenance_mode: maintenanceMode, global_notice: globalNotice })
+        );
+        setNoticeSaved(true);
+        alert(`Notice banner broadcast updated.`);
+      } else {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ global_notice: globalNotice })
+        });
+        if (res.ok) {
+          setNoticeSaved(true);
+          alert(`Notice banner broadcast updated.`);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          alert(`Failed to save notice: ${errData.error || 'Server error'}`);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error updating banner notice.');
+    }
+  };
+
+  const handleSystemAction = async (action: 'clear_payments' | 'clear_profiles' | 'clear_cache' | 'clear_settings' | 'clear_reviews' | 'reset_history') => {
+    if (action === 'clear_payments' || action === 'clear_profiles' || action === 'clear_settings') {
+      const confirmText = action === 'clear_profiles' 
+        ? '⚠️ DANGER: This will delete ALL user profiles except your admin account. Are you sure?' 
+        : `Are you sure you want to run this destructive database operation: "${action.replace('_', ' ')}"?`;
+      if (!confirm(confirmText)) return;
+    }
+
+    try {
+      if (currentUser?.demo) {
+        if (action === 'clear_payments') {
+          localStorage.removeItem('alonetv_mock_payments');
+          setPayments([]);
+          alert('Billing logs cleared locally.');
+        } else if (action === 'clear_profiles') {
+          localStorage.removeItem('alonetv_mock_profiles');
+          const localUser = getLocalProfile();
+          if (localUser) {
+            setProfiles([localUser]);
+          }
+          alert('User account profiles cleared locally.');
+        } else if (action === 'clear_settings') {
+          localStorage.removeItem('alonetv_demo_settings');
+          setMaintenanceMode(false);
+          setGlobalNotice('');
+          alert('Settings database cleared locally.');
+        } else if (action === 'clear_cache') {
+          alert('Client buffer revalidated.');
+        } else if (action === 'clear_reviews') {
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('alonetv_reviews_')) {
+              localStorage.removeItem(key);
+              i--;
+            }
+          }
+          alert('All local reviews deleted successfully.');
+        } else if (action === 'reset_history') {
+          localStorage.removeItem('alonetv_continue_watching');
+          localStorage.removeItem('alonetv_watchlist');
+          alert('Continue watching & watchlist histories reset.');
+        }
+      } else {
+        if (action === 'clear_reviews') {
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('alonetv_reviews_')) {
+              localStorage.removeItem(key);
+              i--;
+            }
+          }
+          alert('All reviews deleted from local client cache successfully.');
+          return;
+        } else if (action === 'reset_history') {
+          localStorage.removeItem('alonetv_continue_watching');
+          localStorage.removeItem('alonetv_watchlist');
+          alert('Continue watching & watchlist histories reset from local client cache.');
+          return;
+        }
+
+        const res = await fetch('/api/admin/system', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          alert(data.message || 'Operation executed successfully.');
+          if (action === 'clear_payments') loadPayments();
+          if (action === 'clear_profiles') loadUsers();
+          if (action === 'clear_settings') loadSettings();
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          alert(`Operation failed: ${errData.error || 'Server error'}`);
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('Error running system operation: ' + (err.message || ''));
     }
   };
 
@@ -499,7 +690,22 @@ CREATE POLICY "Enable inserts for authenticated users" ON public.payments
 CREATE POLICY "Enable updates and deletes for admins only" ON public.payments
   FOR ALL TO authenticated USING (auth.jwt() ->> 'email' = 'theextremez2.0@gmail.com');
 
--- 3. Copy existing registered users from auth.users to public.profiles
+-- 3. Create settings table for global system configurations
+CREATE TABLE IF NOT EXISTS public.settings (
+  key TEXT PRIMARY KEY,
+  value TEXT
+);
+
+-- Enable Row Level Security (RLS) on settings
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read access to settings" ON public.settings
+  FOR SELECT USING (true);
+
+CREATE POLICY "Allow admin full access to settings" ON public.settings
+  FOR ALL TO authenticated USING (auth.jwt() ->> 'email' = 'theextremez2.0@gmail.com');
+
+-- 4. Copy existing registered users from auth.users to public.profiles
 INSERT INTO public.profiles (id, email, username)
 SELECT id, email, COALESCE(raw_user_meta_data->>'display_name', split_part(email, '@', 1))
 FROM auth.users
@@ -918,7 +1124,7 @@ ON CONFLICT (id) DO NOTHING;`}
 
           {/* Tab 4: Operation Panels */}
           {activeTab === 'settings' && (
-            <div className="max-w-lg space-y-6 animate-fade-in text-left">
+            <div className="max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in text-left">
               
               {/* Operations card */}
               <div className="bg-bg-card border border-border rounded-2xl p-6 space-y-6">
@@ -932,14 +1138,11 @@ ON CONFLICT (id) DO NOTHING;`}
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      setMaintenanceMode(!maintenanceMode);
-                      alert(`Maintenance Mode is now ${!maintenanceMode ? 'ENABLED' : 'DISABLED'}. (Demo mock toggle)`);
-                    }}
+                    onClick={handleToggleMaintenance}
                     className={`px-3 py-1 rounded font-mono text-[10px] font-bold uppercase tracking-wider border transition-all ${
                       maintenanceMode 
-                        ? 'bg-red-500/10 border-red-500/35 text-red-500' 
-                        : 'bg-white/5 border-white/10 text-gray-500'
+                        ? 'bg-red-500/10 border-red-500/35 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' 
+                        : 'bg-white/5 border-white/10 text-gray-500 hover:border-white/20'
                     }`}
                   >
                     {maintenanceMode ? 'ENABLED' : 'DISABLED'}
@@ -957,15 +1160,12 @@ ON CONFLICT (id) DO NOTHING;`}
                       type="text"
                       value={globalNotice}
                       onChange={(e) => { setGlobalNotice(e.target.value); setNoticeSaved(false); }}
-                      className="flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-accent-purple"
+                      className="flex-1 px-3 py-2 bg-bg-secondary border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-accent-purple font-sans"
                     />
                     <button
                       type="button"
-                      onClick={() => {
-                        setNoticeSaved(true);
-                        alert(`Banner notice broadcast updated: "${globalNotice}"`);
-                      }}
-                      className="px-3.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold font-mono uppercase tracking-wider"
+                      onClick={handleUpdateNotice}
+                      className="px-3.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold font-mono uppercase tracking-wider transition-colors"
                     >
                       Update
                     </button>
@@ -975,6 +1175,75 @@ ON CONFLICT (id) DO NOTHING;`}
                   )}
                 </div>
 
+              </div>
+
+              {/* Destructive Maintenance / Lag Prevention Card */}
+              <div className="bg-bg-card border border-red-500/10 rounded-2xl p-6 space-y-6">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-red-400 font-mono border-b border-red-500/10 pb-3 flex items-center gap-1.5">
+                    <span>⚠️</span> Destructive Utilities
+                  </h3>
+                  <p className="text-[10px] text-text-muted mt-2 leading-relaxed font-sans">
+                    Use these maintenance utilities to clear buffers, logs, and database records to resolve lag or free up server storage.
+                  </p>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  
+                  {/* Actions Grid */}
+                  <div className="flex flex-col gap-2">
+                    {/* Clear Cache */}
+                    <button
+                      type="button"
+                      onClick={() => handleSystemAction('clear_cache')}
+                      className="w-full py-2 bg-white/5 border border-white/10 hover:bg-purple-600/15 hover:border-purple-500/30 text-white font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center"
+                    >
+                      <span>⚡ Purge System Cache & Revalidate</span>
+                      <span className="text-[9px] text-purple-400">Run Action</span>
+                    </button>
+
+                    {/* Reset local reviews */}
+                    <button
+                      type="button"
+                      onClick={() => handleSystemAction('clear_reviews')}
+                      className="w-full py-2 bg-white/5 border border-white/10 hover:bg-red-950/20 hover:border-red-500/30 text-red-400 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center"
+                    >
+                      <span>💬 Delete All Local Reviews</span>
+                      <span className="text-[9px] text-red-500/60">Destructive</span>
+                    </button>
+
+                    {/* Reset local history */}
+                    <button
+                      type="button"
+                      onClick={() => handleSystemAction('reset_history')}
+                      className="w-full py-2 bg-white/5 border border-white/10 hover:bg-red-950/20 hover:border-red-500/30 text-red-400 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center"
+                    >
+                      <span>⏳ Reset Browsing History & Playlists</span>
+                      <span className="text-[9px] text-red-500/60">Destructive</span>
+                    </button>
+
+                    {/* Clear Payment Logs */}
+                    <button
+                      type="button"
+                      onClick={() => handleSystemAction('clear_payments')}
+                      className="w-full py-2 bg-white/5 border border-white/10 hover:bg-red-950/30 hover:border-red-500/50 text-red-400 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center shadow-lg"
+                    >
+                      <span>💳 Clear All Billing & Transaction Logs</span>
+                      <span className="text-[9px] text-red-500 font-bold">SQL DELETE</span>
+                    </button>
+
+                    {/* Wipe User Accounts */}
+                    <button
+                      type="button"
+                      onClick={() => handleSystemAction('clear_profiles')}
+                      className="w-full py-2 bg-red-950/10 border border-red-500/25 hover:bg-red-950/45 hover:border-red-500/60 text-red-200 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-left px-4 flex justify-between items-center shadow-lg"
+                    >
+                      <span>👥 Wipe Accounts Database (Keep Admin)</span>
+                      <span className="text-[9px] text-red-500 font-bold uppercase">SQL DANGER</span>
+                    </button>
+                  </div>
+
+                </div>
               </div>
 
             </div>

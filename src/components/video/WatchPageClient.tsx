@@ -108,6 +108,7 @@ export default function WatchPageClient({
   const [isCheckingPremium, setIsCheckingPremium] = useState(true);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
 
   const router = useRouter();
 
@@ -115,7 +116,7 @@ export default function WatchPageClient({
     router.push(`/payment?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}&title=${encodeURIComponent(title)}`);
   };
 
-  // Sync premium status on mount
+  // Sync premium status and settings on mount
   useEffect(() => {
     async function checkPremium() {
       try {
@@ -138,7 +139,31 @@ export default function WatchPageClient({
       }
     }
 
+    async function checkSettings() {
+      try {
+        const local = getLocalProfile();
+        if (local && local.demo) {
+          const stored = localStorage.getItem('alonetv_demo_settings');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            setIsMaintenanceMode(parsed.maintenance_mode || false);
+          }
+        } else {
+          const res = await fetch('/api/settings');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+              setIsMaintenanceMode(data.maintenance_mode || false);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load settings in watch client:', err);
+      }
+    }
+
     checkPremium();
+    checkSettings();
     
     const handleUserChange = () => {
       const profile = getLocalProfile();
@@ -451,6 +476,11 @@ export default function WatchPageClient({
 
         if (isCheckingPremium) return;
 
+        if (isMaintenanceMode) {
+          setIsLoadingSources(false);
+          return;
+        }
+
         // Free preview flow
         if (!isPremium) {
           try {
@@ -515,7 +545,7 @@ export default function WatchPageClient({
     }
 
     fetchSources();
-  }, [type, id, videoId, currentSeason, currentEpisode, isAnime, isPremium, isCheckingPremium, tmdbId]);
+  }, [type, id, videoId, currentSeason, currentEpisode, isAnime, isPremium, isCheckingPremium, tmdbId, isMaintenanceMode]);
 
   const handleSeasonChange = (seasonNum: number) => {
     setCurrentSeason(seasonNum);
@@ -574,7 +604,24 @@ export default function WatchPageClient({
           <div className="flex-1 min-w-0">
             {/* Player Area */}
             <div className="w-full">
-              {isLoadingSources && (
+              {isMaintenanceMode && (
+                <div className="aspect-video bg-bg-card rounded-2xl flex items-center justify-center border border-purple-500/20 shadow-[0_0_50px_rgba(168,85,247,0.1)] relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#120826]/30 to-[#07050e]/50 backdrop-blur-sm pointer-events-none" />
+                  <div className="flex flex-col items-center gap-4 text-center px-6 z-10 max-w-md">
+                    <div className="w-16 h-16 rounded-full bg-purple-500/10 border border-purple-500/25 flex items-center justify-center text-purple-400 text-3xl animate-pulse">
+                      ⚙️
+                    </div>
+                    <div className="space-y-1.5">
+                      <h4 className="text-base font-bold text-white font-mono uppercase tracking-wider">System Maintenance</h4>
+                      <p className="text-xs text-text-muted leading-relaxed font-sans">
+                        AloneTV streaming servers are currently undergoing routine optimization. Full movie and episode playbacks will be restored shortly.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!isMaintenanceMode && isLoadingSources && (
                 <div className="aspect-video bg-bg-card rounded-2xl flex items-center justify-center border border-border shadow-level-3">
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-10 h-10 border-4 border-accent-purple border-t-transparent rounded-full animate-spin" />
@@ -583,7 +630,7 @@ export default function WatchPageClient({
                 </div>
               )}
 
-              {!isLoadingSources && sourceError && (
+              {!isMaintenanceMode && !isLoadingSources && sourceError && (
                 <div className="aspect-video bg-bg-card rounded-2xl flex items-center justify-center border border-border/50 shadow-level-3">
                   <div className="flex flex-col items-center gap-3 text-center px-6">
                     <svg className="w-12 h-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -595,7 +642,7 @@ export default function WatchPageClient({
                 </div>
               )}
 
-              {!isLoadingSources && videoSources.length > 0 && (
+              {!isMaintenanceMode && !isLoadingSources && videoSources.length > 0 && (
                 <>
                   <VideoPlayer
                     sources={videoSources}

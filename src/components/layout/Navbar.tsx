@@ -29,6 +29,7 @@ export default function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [globalNotice, setGlobalNotice] = useState<string>('');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,7 +39,6 @@ export default function Navbar() {
     // Load initial preferred language
     setGlobalLanguage(getPreferredAudioLanguage());
 
-    // Load initial avatar
     // Load initial avatar & user status
     try {
       setAvatarUrl(localStorage.getItem('alonetv_avatar'));
@@ -66,6 +66,31 @@ export default function Navbar() {
         setIsAdmin(false);
       }
     });
+
+    // Fetch notice banner on mount
+    const fetchNotice = async () => {
+      try {
+        const local = getLocalProfile();
+        if (local && local.demo) {
+          const stored = localStorage.getItem('alonetv_demo_settings');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            setGlobalNotice(parsed.global_notice || '');
+          }
+        } else {
+          const res = await fetch('/api/settings');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.global_notice) {
+              setGlobalNotice(data.global_notice);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load global notice settings:', e);
+      }
+    };
+    fetchNotice();
 
     window.addEventListener('scroll', handleScroll);
     
@@ -115,13 +140,21 @@ export default function Navbar() {
   };
 
   return (
-    <nav
-      className={`fixed top-0 left-0 right-0 z-50 h-16 border-b transition-all duration-200 ${
-        isScrolled
-          ? 'bg-bg-card/90 backdrop-blur-md border-border shadow-level-1'
-          : 'bg-bg-card border-transparent'
-      }`}
-    >
+    <>
+      {globalNotice && (
+        <div className="fixed top-0 left-0 right-0 z-[100] h-9 bg-gradient-to-r from-purple-950 via-indigo-950 to-purple-950 text-white text-center py-1.5 px-4 text-xs font-mono font-bold flex items-center justify-center gap-2 border-b border-purple-500/20 shadow-lg select-none animate-fade-in truncate">
+          <span className="text-[10px] bg-purple-500/25 px-1.5 py-0.5 rounded border border-purple-400/20 text-purple-300 font-mono">📢 NOTICE</span>
+          <span>{globalNotice}</span>
+        </div>
+      )}
+      <nav
+        style={{ top: globalNotice ? '36px' : '0px' }}
+        className={`fixed left-0 right-0 z-50 h-16 border-b transition-all duration-200 ${
+          isScrolled
+            ? 'bg-bg-card/90 backdrop-blur-md border-border shadow-level-1'
+            : 'bg-bg-card border-transparent'
+        }`}
+      >
       <div className="max-w-[1400px] mx-auto h-full px-4 sm:px-6">
         <div className="flex items-center justify-between h-full">
           {/* Logo */}
@@ -308,5 +341,6 @@ export default function Navbar() {
         )}
       </AnimatePresence>
     </nav>
+    </>
   );
 }
