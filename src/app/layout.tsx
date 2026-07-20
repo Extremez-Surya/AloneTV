@@ -3,7 +3,6 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
-import DockBar from "@/components/layout/DockBar";
 import AuroraBackground from "@/components/ui/AuroraBackground";
 import JsonLd from "@/components/layout/JsonLd";
 import AppShell from "@/components/layout/AppShell";
@@ -89,8 +88,6 @@ export default function RootLayout({
         <AuroraBackground />
         <LayoutGate><Navbar /></LayoutGate>
         <main className="flex-1 relative z-10"><LenisProvider><AppShell>{children}</AppShell></LenisProvider></main>
-        <LayoutGate><DockBar /></LayoutGate>
-
         <LayoutGate>
         <footer className="relative z-10 bg-black border-t border-white/[0.04] pt-16 pb-8">
           <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">

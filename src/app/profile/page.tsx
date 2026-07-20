@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
 import { syncUserProfile, updatePremiumStatus, updateAdminStatus } from '@/lib/supabase/profile';
 import PremiumUpgradeModal from '@/components/video/PremiumUpgradeModal';
@@ -17,68 +16,156 @@ const AVATARS = [
   { id: 'vader', name: 'Lord Vader', url: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=150&auto=format&fit=crop&q=60' }
 ];
 
+function getInitials(name: string) {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+}
+
+function formatDate(date: Date) {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function timeAgo(date: Date) {
+  const diff = Date.now() - date.getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  return formatDate(date)
+}
+
+function getPosterUrl(item: any) {
+  if (item.poster_path) return `https://image.tmdb.org/t/p/w200${item.poster_path}`
+  if (item.backdrop_path) return `https://image.tmdb.org/t/p/w200${item.backdrop_path}`
+  return null
+}
+
+function getTitle(item: any) {
+  return item.title || item.name || item.original_title || 'Untitled'
+}
+
+function getMediaType(item: any) {
+  return item.media_type || item.type || 'movie'
+}
+
+function getItemHref(item: any) {
+  const t = getMediaType(item)
+  const id = item.tmdbId || item.id
+  return `/detail/${t}/${id}`
+}
+
+interface WatchlistItem {
+  id: number
+  tmdbId?: number
+  title?: string
+  name?: string
+  original_title?: string
+  poster_path?: string
+  backdrop_path?: string
+  media_type?: string
+  type?: string
+  addedAt?: string
+}
+
+interface ContinueWatchingItem extends WatchlistItem {
+  progress?: number
+  duration?: number
+  updatedAt?: string
+}
+
+interface Playlist {
+  id: string
+  name: string
+  items: WatchlistItem[]
+  createdAt?: string
+}
+
+interface UserData {
+  email: string
+  name: string
+  is_premium: boolean
+  is_admin: boolean
+}
+
+function MotionNumber({ value }: { value: number }) {
+  const [display, setDisplay] = useState(0)
+  const ref = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        let start = 0
+        const step = Math.max(1, Math.floor(value / 30))
+        const interval = setInterval(() => {
+          start += step
+          if (start >= value) {
+            setDisplay(value)
+            clearInterval(interval)
+          } else {
+            setDisplay(start)
+          }
+        }, 40)
+        observer.disconnect()
+      }
+    }, { threshold: 0.5 })
+    if (ref.current) observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [value])
+  return <span ref={ref}>{display.toLocaleString()}</span>
+}
+
 export default function ProfilePage() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'watchlist' | 'history' | 'playlists' | 'settings'>('watchlist');
-  const [user, setUser] = useState({ email: 'vinay@example.com', name: 'Vinay Kumar', is_premium: false, is_admin: false });
-  const [watchlist, setWatchlist] = useState<any[]>([]);
-  const [continueWatching, setContinueWatching] = useState<any[]>([]);
-  const [playlists, setPlaylists] = useState<any[]>([]);
+  const [user, setUser] = useState<UserData>({ email: '', name: 'Watcher', is_premium: false, is_admin: false });
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [continueWatching, setContinueWatching] = useState<ContinueWatchingItem[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
-  const [isLoadingSession, setIsLoadingSession] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showNewPlaylistInput, setShowNewPlaylistInput] = useState(false);
 
   const loadData = async () => {
     try {
-      // 1. Sync Supabase user details if available
       const synced = await syncUserProfile();
       if (synced) {
         setUser({
-          email: synced.email || 'user@example.com',
+          email: synced.email || '',
           name: synced.username || 'Watcher',
           is_premium: Boolean(synced.is_premium) || Boolean(synced.is_admin),
-          is_admin: Boolean(synced.is_admin)
+          is_admin: Boolean(synced.is_admin),
         });
       } else {
-        const storedUser = JSON.parse(localStorage.getItem('alonetv_user') || 'null');
-        if (storedUser) {
+        const storedUser = JSON.parse(localStorage.getItem('alonetv_user') || '{}');
+        if (storedUser.email) {
           setUser({
-            email: storedUser.email || 'demo@example.com',
-            name: storedUser.name || storedUser.username || 'Demo Watcher',
+            email: storedUser.email || '',
+            name: storedUser.name || storedUser.username || 'Watcher',
             is_premium: Boolean(storedUser.is_premium) || Boolean(storedUser.is_admin),
-            is_admin: Boolean(storedUser.is_admin)
+            is_admin: Boolean(storedUser.is_admin),
           });
         }
       }
-      
-      const storedWatchlist = JSON.parse(localStorage.getItem('alonetv_watchlist') || '[]');
-      setWatchlist(storedWatchlist);
-      
-      const storedHistory = JSON.parse(localStorage.getItem('alonetv_continue_watching') || '[]');
-      setContinueWatching(storedHistory);
-
-      const storedPlaylists = JSON.parse(localStorage.getItem('alonetv_playlists') || '[]');
-      setPlaylists(storedPlaylists);
-
-      const storedAvatar = localStorage.getItem('alonetv_avatar');
-      setAvatarUrl(storedAvatar);
+      setWatchlist(JSON.parse(localStorage.getItem('alonetv_watchlist') || '[]'));
+      setContinueWatching(JSON.parse(localStorage.getItem('alonetv_continue_watching') || '[]'));
+      setPlaylists(JSON.parse(localStorage.getItem('alonetv_playlists') || '[]'));
+      setAvatarUrl(localStorage.getItem('alonetv_avatar'));
     } catch (e) {
-      console.error('Failed to load profile database state:', e);
+      console.error('Failed to load profile data:', e);
     } finally {
-      setIsLoadingSession(false);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
-
     window.addEventListener('alonetv_continue_watching_changed', loadData);
     window.addEventListener('alonetv_watchlist_changed', loadData);
     window.addEventListener('alonetv_playlists_changed', loadData);
-
     return () => {
       window.removeEventListener('alonetv_continue_watching_changed', loadData);
       window.removeEventListener('alonetv_watchlist_changed', loadData);
@@ -90,873 +177,678 @@ export default function ProfilePage() {
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
-    } catch (err) {
-      console.error('Supabase sign out error:', err);
-    }
+    } catch {}
     localStorage.removeItem('alonetv_user');
     window.dispatchEvent(new Event('alonetv_user_changed'));
     window.location.href = '/';
   };
 
-  const handleClearHistory = () => {
-    try {
-      localStorage.removeItem('alonetv_continue_watching');
-      setContinueWatching([]);
-      window.dispatchEvent(new Event('alonetv_continue_watching_changed'));
-    } catch (e) {
-      console.error(e);
-    }
+  const removeFromContinueWatching = (id: number) => {
+    const updated = continueWatching.filter(i => i.id !== id && i.tmdbId !== id);
+    localStorage.setItem('alonetv_continue_watching', JSON.stringify(updated));
+    setContinueWatching(updated);
+    window.dispatchEvent(new Event('alonetv_continue_watching_changed'));
   };
 
-  const handleRemoveFromHistory = (id: string, type: string) => {
-    try {
-      const updated = continueWatching.filter((item) => !(item.id === id && item.type === type));
-      localStorage.setItem('alonetv_continue_watching', JSON.stringify(updated));
-      setContinueWatching(updated);
-      window.dispatchEvent(new Event('alonetv_continue_watching_changed'));
-    } catch (err) {
-      console.error(err);
-    }
+  const removeFromWatchlist = (id: number) => {
+    const updated = watchlist.filter(i => i.id !== id && i.tmdbId !== id);
+    localStorage.setItem('alonetv_watchlist', JSON.stringify(updated));
+    setWatchlist(updated);
+    window.dispatchEvent(new Event('alonetv_watchlist_changed'));
   };
 
-  const handleRemoveFromWatchlist = (id: string, type: string) => {
-    try {
-      const updated = watchlist.filter((item) => !(item.id === id && item.type === type));
-      localStorage.setItem('alonetv_watchlist', JSON.stringify(updated));
-      setWatchlist(updated);
-      window.dispatchEvent(new Event('alonetv_watchlist_changed'));
-    } catch (err) {
-      console.error(err);
-    }
+  const createPlaylist = () => {
+    const name = newPlaylistName.trim();
+    if (!name) return;
+    const storedPlaylists = JSON.parse(localStorage.getItem('alonetv_playlists') || '[]');
+    storedPlaylists.push({ id: crypto.randomUUID(), name, items: [], createdAt: new Date().toISOString() });
+    localStorage.setItem('alonetv_playlists', JSON.stringify(storedPlaylists));
+    setPlaylists(storedPlaylists);
+    setNewPlaylistName('');
+    setShowNewPlaylistInput(false);
+    window.dispatchEvent(new Event('alonetv_playlists_changed'));
   };
 
-  const handleCreatePlaylist = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPlaylistName.trim()) return;
+  const deletePlaylist = (id: string) => {
+    const updated = playlists.filter(p => p.id !== id);
+    localStorage.setItem('alonetv_playlists', JSON.stringify(updated));
+    setPlaylists(updated);
+    if (selectedPlaylistId === id) setSelectedPlaylistId(null);
+    window.dispatchEvent(new Event('alonetv_playlists_changed'));
+  };
 
-    try {
-      const storedPlaylists = JSON.parse(localStorage.getItem('alonetv_playlists') || '[]');
-      const newPlaylist = {
-        id: 'playlist-' + Date.now(),
-        name: newPlaylistName.trim(),
-        items: []
-      };
-      storedPlaylists.push(newPlaylist);
+  const removeFromPlaylist = (playlistId: string, itemId: number) => {
+    const storedPlaylists = JSON.parse(localStorage.getItem('alonetv_playlists') || '[]');
+    const pl = storedPlaylists.find((p: Playlist) => p.id === playlistId);
+    if (pl) {
+      pl.items = pl.items.filter((i: WatchlistItem) => i.id !== itemId && i.tmdbId !== itemId);
       localStorage.setItem('alonetv_playlists', JSON.stringify(storedPlaylists));
       setPlaylists(storedPlaylists);
-      setNewPlaylistName('');
       window.dispatchEvent(new Event('alonetv_playlists_changed'));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleDeletePlaylist = (playlistId: string) => {
-    try {
-      const storedPlaylists = JSON.parse(localStorage.getItem('alonetv_playlists') || '[]');
-      const updated = storedPlaylists.filter((p: any) => p.id !== playlistId);
-      localStorage.setItem('alonetv_playlists', JSON.stringify(updated));
-      setPlaylists(updated);
-      if (selectedPlaylistId === playlistId) {
-        setSelectedPlaylistId(null);
-      }
-      window.dispatchEvent(new Event('alonetv_playlists_changed'));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleRemoveFromPlaylist = (playlistId: string, itemId: string, itemType: string) => {
-    try {
-      const storedPlaylists = JSON.parse(localStorage.getItem('alonetv_playlists') || '[]');
-      const playlist = storedPlaylists.find((p: any) => p.id === playlistId);
-      if (playlist) {
-        playlist.items = playlist.items.filter((i: any) => !(i.id === itemId && i.type === itemType));
-        localStorage.setItem('alonetv_playlists', JSON.stringify(storedPlaylists));
-        setPlaylists(storedPlaylists);
-        window.dispatchEvent(new Event('alonetv_playlists_changed'));
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleSharePlaylist = (playlist: any) => {
-    try {
-      const dataObj = {
-        name: playlist.name,
-        items: playlist.items.map((i: any) => ({
-          id: i.id,
-          type: i.type,
-          title: i.title,
-          posterUrl: i.posterUrl,
-          year: i.year,
-          rating: i.rating,
-          quality: i.quality || 'HD',
-          genres: i.genres || []
-        }))
-      };
-      // Encode Unicode correctly in base64
-      const base64 = btoa(encodeURIComponent(JSON.stringify(dataObj)));
-      const shareUrl = `${window.location.origin}/playlist?import=${base64}`;
-      navigator.clipboard.writeText(shareUrl);
-      alert(`Shareable playlist URL copied to clipboard!`);
-    } catch (err) {
-      console.error(err);
     }
   };
 
   const selectAvatar = (url: string) => {
-    try {
-      localStorage.setItem('alonetv_avatar', url);
-      setAvatarUrl(url);
-      window.dispatchEvent(new Event('alonetv_avatar_changed'));
-      setIsAvatarModalOpen(false);
-    } catch (e) {
-      console.error(e);
-    }
+    localStorage.setItem('alonetv_avatar', url);
+    setAvatarUrl(url);
+    setIsAvatarModalOpen(false);
   };
 
-  const removeAvatar = () => {
-    try {
-      localStorage.removeItem('alonetv_avatar');
-      setAvatarUrl(null);
-      window.dispatchEvent(new Event('alonetv_avatar_changed'));
-      setIsAvatarModalOpen(false);
-    } catch (e) {
-      console.error(e);
-    }
+  const resetAvatar = () => {
+    localStorage.removeItem('alonetv_avatar');
+    setAvatarUrl(null);
+    setIsAvatarModalOpen(false);
   };
 
-  // Compute watch statistics
-  const genreCounts: Record<string, number> = {};
-  let totalGenreRecords = 0;
-  continueWatching.forEach((item) => {
-    if (item.genres && Array.isArray(item.genres)) {
-      item.genres.forEach((g: string) => {
-        const cleanG = g.trim();
-        genreCounts[cleanG] = (genreCounts[cleanG] || 0) + 1;
-        totalGenreRecords++;
-      });
-    }
-  });
+  const totalItems = watchlist.length + continueWatching.length + playlists.reduce((a, p) => a + p.items.length, 0);
+  const selectedPlaylist = playlists.find(p => p.id === selectedPlaylistId);
 
-  const sortedGenres = Object.entries(genreCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3); // top 3
-
-  const COLORS = ['#9333ea', '#0d9488', '#eab308'];
-  const slices = sortedGenres.map(([genre, count], index) => {
-    const percent = totalGenreRecords > 0 ? (count / totalGenreRecords) * 100 : 33.3;
-    return {
-      genre,
-      percent,
-      color: COLORS[index] || '#6b7280'
-    };
-  });
-
-  const initial = user.name ? user.name.charAt(0).toUpperCase() : 'V';
-
-  const selectedPlaylist = playlists.find((p) => p.id === selectedPlaylistId);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+          <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest">Loading profile...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-bg-primary pb-12 pt-[72px] text-left">
-      {/* Profile Header */}
-      <div className="bg-bg-card border-b border-border py-8">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-            <div 
-              onClick={() => setIsAvatarModalOpen(true)}
-              className="w-20 h-20 rounded-full overflow-hidden bg-text-primary text-bg-card flex items-center justify-center text-3xl font-semibold shadow-level-2 cursor-pointer group relative border-2 border-border hover:border-accent-purple transition-all shrink-0"
-            >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover group-hover:opacity-75 transition-opacity" />
-              ) : (
-                initial
-              )}
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div className="min-h-screen bg-black">
+      {/* Background gradient */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-blue-600/8 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="relative z-10 max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+        {/* ===== PROFILE HERO ===== */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="relative mb-10"
+        >
+          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 sm:gap-8">
+            {/* Avatar with glow */}
+            <div className="relative group">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-purple-500 via-fuchsia-500 to-blue-500 p-[3px] shadow-xl shadow-purple-500/20">
+                <button
+                  onClick={() => setIsAvatarModalOpen(true)}
+                  className="w-full h-full rounded-full bg-black overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                >
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-white text-xl font-bold tracking-wider">
+                      {getInitials(user.name)}
+                    </div>
+                  )}
+                </button>
+              </div>
+              <button
+                onClick={() => setIsAvatarModalOpen(true)}
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-purple-600 hover:bg-purple-500 border-2 border-black flex items-center justify-center transition-colors shadow-lg"
+              >
+                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
-              </div>
+              </button>
             </div>
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2.5 justify-center sm:justify-start">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-[-1.28px] text-text-primary">
-                  {user.name}
-                </h1>
-                {user.is_premium ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-lg shadow-yellow-500/25 border border-yellow-400/30 animate-pulse font-mono font-bold">
-                    👑 Premium
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/10 text-gray-400 border border-white/5 font-mono">
-                    Free Plan
+
+            {/* Name + badges */}
+            <div className="text-center sm:text-left flex-1 min-w-0">
+              <div className="flex items-center gap-3 justify-center sm:justify-start mb-1">
+                <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{user.name}</h1>
+                {user.is_premium && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/30 text-[10px] font-semibold text-amber-400 font-mono tracking-wider uppercase">
+                    Premium
                   </span>
                 )}
                 {user.is_admin && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20 font-mono font-bold">
-                    🛡️ Admin
+                  <span className="px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-[10px] font-semibold text-purple-400 font-mono tracking-wider uppercase">
+                    Admin
                   </span>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-text-muted font-mono">{user.email}</p>
-              <div className="pt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-accent-purple px-2 py-0.5 bg-accent-purple/5 border border-accent-purple/15 rounded-md">
-                  {watchlist.length} in watchlist
-                </span>
-                <span className="font-mono text-[10px] uppercase tracking-wider text-accent-teal px-2 py-0.5 bg-accent-teal/5 border border-accent-teal/15 rounded-md">
-                  {playlists.length} Cine-Decks
-                </span>
-              </div>
+              <p className="text-sm text-zinc-500 font-mono">{user.email || 'No email'}</p>
             </div>
+
+            {/* Settings trigger */}
+            <button
+              onClick={() => setShowSettings(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/[0.06] text-zinc-400 hover:text-white text-xs font-mono transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Settings
+            </button>
           </div>
-        </div>
-      </div>
+        </motion.div>
 
-      {/* Tabs */}
-      <div className="border-b border-border bg-bg-card">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
-          <div className="flex gap-6">
-            {(['watchlist', 'history', 'playlists', 'settings'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`py-4 text-xs font-semibold uppercase tracking-wider font-mono transition-colors relative ${
-                  activeTab === tab ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                {tab === 'playlists' ? 'Cine-Decks' : tab}
-                {activeTab === tab && (
-                  <motion.div
-                    layoutId="profileActiveTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-text-primary"
-                  />
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Content Area */}
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          
-          {/* Main Content Area */}
-          <div className="flex-1 min-w-0">
-            {activeTab === 'watchlist' && (
-              <div className="space-y-12">
-                {/* Continue Watching Section */}
-                {continueWatching.length > 0 && (
-                  <section>
-                    <div className="flex items-center justify-between mb-4 gap-4">
-                      <h2 className="text-lg font-semibold tracking-[-0.6px] text-text-primary">Continue Watching.</h2>
-                      <button
-                        onClick={handleClearHistory}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-red-500/20 bg-red-500/10 px-3.5 py-1.5 text-xs font-semibold text-red-500 shadow-level-1 hover:bg-red-500/20 transition-all font-mono uppercase tracking-wider"
-                      >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Clear All
-                      </button>
-                    </div>
-                    <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-                      {continueWatching.map((item) => (
-                        <div key={`${item.type}-${item.id}`} className="flex-shrink-0 w-[200px] group relative">
-                          <Link href={item.href || `/watch/${item.type}/${item.id}`}>
-                            <div className="relative aspect-video rounded-xl overflow-hidden mb-2.5 bg-bg-secondary border border-border shadow-level-2 group-hover:shadow-level-3">
-                              {item.posterUrl ? (
-                                <img
-                                  src={item.posterUrl}
-                                  alt={item.title}
-                                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                                />
-                              ) : (
-                                <div className="w-full h-full bg-bg-secondary" />
-                              )}
-                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-black shadow-level-3">
-                                  <svg className="w-5 h-5 fill-current ml-0.5" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                  </svg>
-                                </div>
-                              </div>
-                            </div>
-                            <h3 className="text-xs sm:text-sm font-semibold text-text-primary truncate group-hover:text-accent-purple transition-colors text-left">
-                              {item.title}
-                            </h3>
-                            <p className="text-[10px] text-text-muted mt-0.5 font-mono capitalize text-left">
-                              {item.genreLabel} {item.season && `• S${item.season} EP${item.episode}`}
-                            </p>
-                          </Link>
-
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleRemoveFromHistory(item.id, item.type);
-                            }}
-                            className="absolute top-2 right-2 w-7 h-7 rounded-md bg-black/60 hover:bg-red-600 text-white backdrop-blur-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-level-2 z-10"
-                            aria-label="Remove from history"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {/* My Watchlist Section */}
-                <section>
-                  <h2 className="text-lg font-semibold tracking-[-0.6px] text-text-primary mb-4">My Watchlist.</h2>
-                  {watchlist.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                      {watchlist.map((item, index) => (
-                        <motion.div
-                          key={`${item.type}-${item.id}`}
-                          initial={{ opacity: 0, y: 12 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.35, delay: index * 0.03 }}
-                          className="group relative"
-                        >
-                          <Link href={item.href || `/watch/${item.type}/${item.id}`}>
-                            <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-2.5 bg-bg-secondary border border-border shadow-level-2 group-hover:shadow-level-3">
-                              {item.posterUrl ? (
-                                <img
-                                  src={item.posterUrl}
-                                  alt={item.title}
-                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                />
-                              ) : (
-                                <div className="w-full h-full bg-bg-secondary" />
-                              )}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                                <span className="w-full py-2 bg-white text-black text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 shadow-level-2">
-                                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                  </svg>
-                                  Play Now
-                                </span>
-                              </div>
-                            </div>
-                            <h3 className="text-xs sm:text-sm font-semibold text-text-primary truncate group-hover:text-accent-purple transition-colors text-left">
-                              {item.title}
-                            </h3>
-                            <p className="text-[10px] text-text-muted mt-0.5 font-mono text-left">{item.year} • {item.genreLabel}</p>
-                          </Link>
-
-                          <button
-                            onClick={() => handleRemoveFromWatchlist(item.id, item.type)}
-                            className="absolute top-2 right-2 w-7 h-7 rounded-md bg-black/60 hover:bg-red-600 text-white backdrop-blur-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-level-2"
-                            aria-label="Remove from watchlist"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </motion.div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="py-12 text-center text-text-muted border border-dashed border-border rounded-2xl bg-bg-card">
-                      <svg className="w-12 h-12 mx-auto mb-3 text-text-muted/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                      </svg>
-                      <p className="text-sm font-medium">Your watchlist is empty</p>
-                      <p className="text-xs mt-1">Bookmark movies or series to see them here</p>
-                    </div>
-                  )}
-                </section>
+        {/* ===== STATS GRID ===== */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10"
+        >
+          {[
+            { label: 'Watchlist', value: watchlist.length, icon: 'bookmark' },
+            { label: 'Continue', value: continueWatching.length, icon: 'play' },
+            { label: 'Decks', value: playlists.length, icon: 'layers' },
+            { label: 'Items', value: totalItems, icon: 'stack' },
+          ].map((stat, i) => (
+            <div
+              key={stat.label}
+              className="relative overflow-hidden rounded-xl bg-white/[0.03] border border-white/[0.06] p-4"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">{stat.label}</span>
+                <svg className="w-4 h-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  {stat.icon === 'bookmark' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />}
+                  {stat.icon === 'play' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />}
+                  {stat.icon === 'layers' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />}
+                  {stat.icon === 'stack' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />}
+                </svg>
               </div>
+              <span className="text-2xl sm:text-3xl font-bold text-white tabular-nums tracking-tight">
+                <MotionNumber value={stat.value} />
+              </span>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* ===== CONTENT SHELVES ===== */}
+        <div className="space-y-8">
+          {/* Continue Watching */}
+          {continueWatching.length > 0 && (
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.25 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-white tracking-wide flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                  Continue Watching
+                </h2>
+                <span className="text-[10px] font-mono text-zinc-600">{continueWatching.length} titles</span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide scroll-smooth">
+                {continueWatching.map((item) => {
+                  const poster = getPosterUrl(item)
+                  const progress = item.progress && item.duration ? (item.progress / item.duration) * 100 : 0
+                  return (
+                    <div key={item.id || item.tmdbId} className="flex-shrink-0 w-[160px] sm:w-[180px] group">
+                      <Link href={getItemHref(item)} className="block relative aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/[0.06]">
+                        {poster ? (
+                          <img src={poster} alt={getTitle(item)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-zinc-700">
+                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                            </svg>
+                          </div>
+                        )}
+                        {progress > 0 && (
+                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-zinc-800">
+                            <div className="h-full bg-purple-500 transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full bg-white/90 text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                            <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                      </Link>
+                      <div className="mt-2 flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs text-zinc-300 truncate">{getTitle(item)}</p>
+                          <p className="text-[9px] text-zinc-600 font-mono uppercase">{getMediaType(item)}</p>
+                        </div>
+                        <button
+                          onClick={() => removeFromContinueWatching(item.id || item.tmdbId!)}
+                          className="shrink-0 p-1 rounded hover:bg-white/5 text-zinc-600 hover:text-zinc-400 transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </motion.section>
+          )}
+
+          {/* Playlist Decks */}
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.35 }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-white tracking-wide flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                Cine-Decks
+              </h2>
+              <button
+                onClick={() => setShowNewPlaylistInput(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white text-[10px] font-mono transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                New Deck
+              </button>
+            </div>
+
+            {showNewPlaylistInput && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="mb-4 flex gap-2"
+              >
+                <input
+                  value={newPlaylistName}
+                  onChange={e => setNewPlaylistName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && createPlaylist()}
+                  placeholder="Deck name..."
+                  className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/[0.08] text-white text-xs placeholder:text-zinc-600 focus:outline-none focus:border-purple-500/50 transition-colors"
+                  autoFocus
+                />
+                <button onClick={createPlaylist} className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition-colors">
+                  Create
+                </button>
+                <button onClick={() => { setShowNewPlaylistInput(false); setNewPlaylistName('') }} className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-500 text-xs transition-colors">
+                  Cancel
+                </button>
+              </motion.div>
             )}
 
-            {activeTab === 'history' && (
-              <div className="space-y-12">
-                <section>
-                  <div className="flex items-center justify-between mb-4 gap-4">
-                    <h2 className="text-lg font-semibold tracking-[-0.6px] text-text-primary">Watch History.</h2>
-                    {continueWatching.length > 0 && (
+            {playlists.length === 0 ? (
+              <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] border-dashed p-8 text-center">
+                <svg className="w-8 h-8 mx-auto mb-3 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <p className="text-sm text-zinc-600 font-mono">No Cine-Decks yet. Create one to start organizing.</p>
+              </div>
+            ) : selectedPlaylistId ? (
+              /* Selected playlist detail view */
+              <div>
+                <button
+                  onClick={() => setSelectedPlaylistId(null)}
+                  className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 mb-4 transition-colors font-mono"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Back to Decks
+                </button>
+                {selectedPlaylist && (
+                  <>
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-base font-semibold text-white">{selectedPlaylist.name}</h3>
+                        <p className="text-[10px] text-zinc-600 font-mono">{selectedPlaylist.items.length} items</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            const data = btoa(JSON.stringify(selectedPlaylist.items.map(i => i.tmdbId || i.id)));
+                            navigator.clipboard.writeText(`${window.location.origin}/playlist?data=${data}`);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 text-[10px] font-mono transition-colors"
+                        >
+                          Share
+                        </button>
+                        <button
+                          onClick={() => deletePlaylist(selectedPlaylist.id)}
+                          className="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-mono transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    {selectedPlaylist.items.length === 0 ? (
+                      <p className="text-sm text-zinc-600 font-mono py-8 text-center">This deck is empty.</p>
+                    ) : (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                        {selectedPlaylist.items.map((item) => {
+                          const poster = getPosterUrl(item)
+                          return (
+                            <div key={item.id || item.tmdbId} className="group">
+                              <Link href={getItemHref(item)} className="block relative aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 border border-white/[0.06]">
+                                {poster ? (
+                                  <img src={poster} alt={getTitle(item)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-zinc-700">
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </Link>
+                              <div className="mt-1.5 flex items-start justify-between gap-1">
+                                <p className="text-[10px] text-zinc-400 truncate flex-1">{getTitle(item)}</p>
+                                <button
+                                  onClick={() => removeFromPlaylist(selectedPlaylist.id, item.id || item.tmdbId!)}
+                                  className="shrink-0 p-0.5 rounded text-zinc-600 hover:text-red-400"
+                                >
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ) : (
+              /* Playlist cards grid */
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {playlists.map((pl) => (
+                  <motion.button
+                    key={pl.id}
+                    onClick={() => setSelectedPlaylistId(pl.id)}
+                    whileHover={{ scale: 1.02 }}
+                    className="text-left relative overflow-hidden rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 hover:border-white/[0.12] transition-colors group"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                      </div>
                       <button
-                        onClick={handleClearHistory}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-red-500/20 bg-red-500/10 px-3.5 py-1.5 text-xs font-semibold text-red-500 shadow-level-1 hover:bg-red-500/20 transition-all font-mono uppercase tracking-wider"
+                        onClick={(e) => { e.stopPropagation(); deletePlaylist(pl.id) }}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded text-zinc-600 hover:text-red-400 transition-all"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                        Clear All
                       </button>
-                    )}
-                  </div>
-
-                  {continueWatching.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                      {continueWatching.map((item, index) => (
-                        <motion.div
-                          key={`${item.type}-${item.id}`}
-                          initial={{ opacity: 0, y: 12 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.35, delay: index * 0.03 }}
-                          className="group relative"
-                        >
-                          <Link href={item.href || `/watch/${item.type}/${item.id}`}>
-                            <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-2.5 bg-bg-secondary border border-border shadow-level-2 group-hover:shadow-level-3">
-                              {item.posterUrl ? (
-                                <img
-                                  src={item.posterUrl}
-                                  alt={item.title}
-                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                />
-                              ) : (
-                                <div className="w-full h-full bg-bg-secondary" />
-                              )}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                                <span className="w-full py-2 bg-white text-black text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 shadow-level-2">
-                                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                  </svg>
-                                  Play Now
-                                </span>
-                              </div>
+                    </div>
+                    <h3 className="text-sm font-medium text-white truncate">{pl.name}</h3>
+                    <p className="text-[10px] text-zinc-600 font-mono mt-0.5">{pl.items.length} items</p>
+                    {pl.items.length > 0 && (
+                      <div className="flex -space-x-2 mt-3">
+                        {pl.items.slice(0, 3).map((item, i) => {
+                          const poster = getPosterUrl(item)
+                          return (
+                            <div key={i} className="w-7 h-10 rounded border border-zinc-800 overflow-hidden bg-zinc-900">
+                              {poster && <img src={poster} alt="" className="w-full h-full object-cover" />}
                             </div>
-                            <h3 className="text-xs sm:text-sm font-semibold text-text-primary truncate group-hover:text-accent-purple transition-colors text-left">
-                              {item.title}
-                            </h3>
-                            <p className="text-[10px] text-text-muted mt-0.5 font-mono capitalize text-left">
-                              {item.genreLabel} {item.season && `• S${item.season} EP${item.episode}`}
-                            </p>
-                          </Link>
-
-                          <button
-                            onClick={() => handleRemoveFromHistory(item.id, item.type)}
-                            className="absolute top-2 right-2 w-7 h-7 rounded-md bg-black/60 hover:bg-red-600 text-white backdrop-blur-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-level-2"
-                            aria-label="Remove from history"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </motion.div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="py-12 text-center text-text-muted border border-dashed border-border rounded-2xl bg-bg-card">
-                      <svg className="w-12 h-12 mx-auto mb-3 text-text-muted/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <p className="text-sm font-medium">No watch history records</p>
-                      <p className="text-xs mt-1">Watch streams to track your history here</p>
-                    </div>
-                  )}
-                </section>
-              </div>
-            )}
-
-            {activeTab === 'playlists' && (
-              <div className="space-y-8">
-                {/* Playlist creation form */}
-                <form onSubmit={handleCreatePlaylist} className="flex gap-2 bg-bg-card border border-border p-4 rounded-xl shadow-level-1">
-                  <input
-                    type="text"
-                    placeholder="Create a new Cine-Deck playlist..."
-                    value={newPlaylistName}
-                    onChange={(e) => setNewPlaylistName(e.target.value)}
-                    className="flex-1 px-3.5 py-1.5 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-purple"
-                  />
-                  <button
-                    type="submit"
-                    className="px-4 py-1.5 bg-accent-purple text-white text-xs font-semibold rounded-lg hover:bg-accent-purple/90 transition-colors uppercase font-mono tracking-wider"
-                  >
-                    Create
-                  </button>
-                </form>
-
-                {/* Main list */}
-                {selectedPlaylistId && selectedPlaylist ? (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between border-b border-border pb-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setSelectedPlaylistId(null)}
-                          className="p-1 hover:bg-white/5 rounded-md text-text-muted hover:text-white"
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
-                        <h2 className="text-lg font-bold text-text-primary">{selectedPlaylist.name}</h2>
-                        <span className="font-mono text-xs text-text-muted">({selectedPlaylist.items.length} titles)</span>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleSharePlaylist(selectedPlaylist)}
-                          className="px-3 py-1 bg-accent-teal/20 text-accent-teal hover:bg-accent-teal/30 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 font-mono uppercase tracking-wider"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 10.742l5.028-2.514m-5.028 3.514l5.028 2.514M17 12a3 3 0 11-6 0 3 3 0 016 0zm-7-5a3 3 0 11-6 0 3 3 0 016 0zm-7 10a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          Share
-                        </button>
-                        <button
-                          onClick={() => handleDeletePlaylist(selectedPlaylist.id)}
-                          className="px-3 py-1 bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 font-mono uppercase tracking-wider"
-                        >
-                          Delete Cine-Deck
-                        </button>
-                      </div>
-                    </div>
-
-                    {selectedPlaylist.items.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        {selectedPlaylist.items.map((item: any, idx: number) => (
-                          <div key={`${item.type}-${item.id}`} className="group relative">
-                            <Link href={item.href || `/watch/${item.type}/${item.id}`}>
-                              <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-2.5 bg-bg-secondary border border-border shadow-level-2 group-hover:shadow-level-3">
-                                {item.posterUrl ? (
-                                  <img src={item.posterUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                                ) : (
-                                  <div className="w-full h-full bg-bg-secondary" />
-                                )}
-                              </div>
-                              <h3 className="text-xs sm:text-sm font-semibold text-text-primary truncate group-hover:text-accent-purple transition-colors text-left">{item.title}</h3>
-                              <p className="text-[10px] text-text-muted mt-0.5 font-mono text-left">{item.year} • {item.type === 'tv' ? 'TV' : item.type === 'anime' ? 'Anime' : 'Movie'}</p>
-                            </Link>
-                            <button
-                              onClick={() => handleRemoveFromPlaylist(selectedPlaylist.id, item.id, item.type)}
-                              className="absolute top-2 right-2 w-7 h-7 rounded-md bg-black/60 hover:bg-red-600 text-white backdrop-blur-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-level-2"
-                              aria-label="Remove from playlist"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="py-12 text-center text-text-muted border border-dashed border-border rounded-2xl bg-bg-card">
-                        <p className="text-sm font-medium">This Cine-Deck is empty</p>
-                        <p className="text-xs mt-1">Browse movies and click the "+" icon to add them here</p>
+                          )
+                        })}
                       </div>
                     )}
-                  </div>
-                ) : playlists.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {playlists.map((pl) => (
-                      <div
-                        key={pl.id}
-                        className="bg-bg-card border border-border p-4 rounded-xl shadow-level-1 hover:border-accent-purple/35 transition-all flex flex-col justify-between h-32"
-                      >
-                        <div 
-                          onClick={() => setSelectedPlaylistId(pl.id)}
-                          className="cursor-pointer space-y-1.5 flex-1"
-                        >
-                          <h3 className="font-semibold text-text-primary hover:text-accent-purple transition-colors text-sm sm:text-base">{pl.name}</h3>
-                          <p className="text-xs text-text-muted font-mono">{pl.items.length} titles inside</p>
-                        </div>
-                        <div className="flex gap-2 justify-end pt-2 border-t border-border/20">
-                          <button
-                            onClick={() => handleSharePlaylist(pl)}
-                            className="px-2.5 py-1 bg-white/5 hover:bg-accent-teal/15 text-text-muted hover:text-accent-teal text-[10px] font-bold rounded font-mono uppercase tracking-wider transition-colors"
-                          >
-                            Share
-                          </button>
-                          <button
-                            onClick={() => handleDeletePlaylist(pl.id)}
-                            className="px-2.5 py-1 bg-white/5 hover:bg-red-900/20 text-text-muted hover:text-red-500 text-[10px] font-bold rounded font-mono uppercase tracking-wider transition-colors"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-12 text-center text-text-muted border border-dashed border-border rounded-2xl bg-bg-card">
-                    <svg className="w-12 h-12 mx-auto mb-3 text-text-muted/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                    <p className="text-sm font-medium">You haven't created any playlists yet</p>
-                    <p className="text-xs mt-1">Create playlists above or add movies via cards directly</p>
-                  </div>
-                )}
+                  </motion.button>
+                ))}
               </div>
             )}
+          </motion.section>
 
-            {activeTab === 'settings' && (
-              <div className="space-y-6 text-left">
-                {/* Profile details */}
-                <div className="max-w-lg bg-bg-card rounded-2xl p-6 border border-border shadow-level-3">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted mb-4 font-mono">Profile Settings</h3>
-                  <div className="space-y-5">
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 font-mono">Display Name</label>
-                      <input
-                        type="text"
-                        defaultValue={user.name}
-                        onChange={(e) => setUser({ ...user, name: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-purple"
-                      />
+          {/* Watchlist */}
+          {watchlist.length > 0 && (
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.45 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-white tracking-wide flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  Watchlist
+                </h2>
+                <span className="text-[10px] font-mono text-zinc-600">{watchlist.length} titles</span>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                {watchlist.map((item) => {
+                  const poster = getPosterUrl(item)
+                  return (
+                    <div key={item.id || item.tmdbId} className="group">
+                      <Link href={getItemHref(item)} className="block relative aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 border border-white/[0.06]">
+                        {poster ? (
+                          <img src={poster} alt={getTitle(item)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-zinc-700">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                            </svg>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-full bg-white/90 text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                            <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                      </Link>
+                      <div className="mt-1.5 flex items-start justify-between gap-1">
+                        <p className="text-[10px] text-zinc-400 truncate flex-1">{getTitle(item)}</p>
+                        <button
+                          onClick={() => removeFromWatchlist(item.id || item.tmdbId!)}
+                          className="shrink-0 p-0.5 rounded text-zinc-600 hover:text-red-400"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 font-mono">Email address</label>
-                      <input
-                        type="email"
-                        defaultValue={user.email}
-                        disabled
-                        className="w-full px-3.5 py-2 bg-bg-secondary border border-border rounded-lg text-sm text-text-muted cursor-not-allowed"
-                      />
+                  )
+                })}
+              </div>
+            </motion.section>
+          )}
+
+          {/* Empty state */}
+          {watchlist.length === 0 && continueWatching.length === 0 && playlists.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-center py-16"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <h3 className="text-base font-medium text-zinc-400 mb-1">Your library is empty</h3>
+              <p className="text-sm text-zinc-600 font-mono max-w-sm mx-auto">Start exploring movies and shows. Add them to your watchlist to see them here.</p>
+              <Link
+                href="/movies"
+                className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Discover Content
+              </Link>
+            </motion.div>
+          )}
+        </div>
+      </div>
+
+      {/* ===== AVATAR MODAL ===== */}
+      <AnimatePresence>
+        {isAvatarModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => setIsAvatarModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-zinc-900/95 border border-white/[0.08] rounded-2xl p-6 max-w-md w-full shadow-2xl"
+            >
+              <h3 className="text-sm font-semibold text-white mb-1">Choose Avatar</h3>
+              <p className="text-[10px] text-zinc-500 font-mono mb-5">Pick a cinematic identity</p>
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                {AVATARS.map((av) => (
+                  <button
+                    key={av.id}
+                    onClick={() => selectAvatar(av.url)}
+                    className={`relative rounded-xl overflow-hidden aspect-square border-2 transition-all ${
+                      avatarUrl === av.url ? 'border-purple-500 shadow-lg shadow-purple-500/20' : 'border-transparent hover:border-white/20'
+                    }`}
+                  >
+                    <img src={av.url} alt={av.name} className="w-full h-full object-cover" />
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                      <span className="text-[8px] text-white font-mono">{av.name}</span>
                     </div>
-                    <button 
-                      onClick={handleSignOut}
-                      className="w-full py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-md shadow-red-600/10"
-                    >
-                      Sign Out
-                    </button>
-                  </div>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={resetAvatar} className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 text-xs transition-colors">
+                  Reset to Initials
+                </button>
+                <button onClick={() => setIsAvatarModalOpen(false)} className="flex-1 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition-colors">
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ===== SETTINGS DRAWER ===== */}
+      <AnimatePresence>
+        {showSettings && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+              onClick={() => setShowSettings(false)}
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-sm bg-zinc-950/95 backdrop-blur-xl border-l border-white/[0.06] shadow-2xl"
+            >
+              <div className="flex flex-col h-full p-6">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-sm font-semibold text-white">Settings</h2>
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-500 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
 
-                {/* Admin Mode Controls (Testing & RLS) */}
-                {(user.email === 'theextremez2.0@gmail.com' || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('alonetv_user') || '{}').demo === true)) && (
-                  <div className="max-w-lg bg-bg-card border border-border p-6 rounded-2xl shadow-level-2 text-left space-y-4">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-white font-mono">Admin Authorization Panel</h3>
-                    <p className="text-xs text-text-muted leading-relaxed">
-                      Toggle your admin privileges to view or restrict dashboard access.
-                    </p>
-                    
-                    <div className="flex items-center justify-between pt-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-purple-400">🛡️</span>
-                        <span className="text-xs font-semibold text-white font-mono">Admin Status</span>
+                <div className="flex-1 space-y-6 overflow-y-auto">
+                  {/* Profile card */}
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 p-[2px]">
+                        <div className="w-full h-full rounded-full bg-zinc-900 overflow-hidden">
+                          {avatarUrl ? (
+                            <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold">
+                              {getInitials(user.name)}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const updated = await updateAdminStatus(!user.is_admin);
-                          if (updated) {
-                            setUser(prev => ({ ...prev, is_admin: Boolean(updated.is_admin) }));
-                            window.dispatchEvent(new Event('alonetv_user_changed'));
-                          }
-                        }}
-                        className={`px-3 py-1.5 rounded font-mono text-[10px] font-bold uppercase tracking-wider border transition-all ${
-                          user.is_admin
-                            ? 'bg-purple-500/10 border-purple-500/35 text-purple-400 font-bold'
-                            : 'bg-white/5 border-white/10 text-gray-500'
-                        }`}
-                      >
-                        {user.is_admin ? 'ENABLED' : 'DISABLED'}
-                      </button>
-                    </div>
-
-                    {user.is_admin && (
-                      <div className="pt-3.5 border-t border-white/5">
-                        <Link
-                          href="/admin"
-                          className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold font-mono uppercase tracking-wider block text-center shadow-lg shadow-purple-500/20 transition-colors"
-                        >
-                          👑 Open Admin Control Center
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Premium Membership details */}
-                <div className="max-w-lg bg-gradient-to-br from-[#130d2b] to-[#0a0715] rounded-2xl p-6 border border-purple-500/20 shadow-level-3 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
-                  
-                  <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-purple-400 font-mono">AloneTV Membership</h3>
-                    {user.is_premium ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-500 border border-amber-500/35">
-                        👑 ACTIVE
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/5 text-gray-400 border border-white/10">
-                        INACTIVE
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-base font-bold text-white">
-                        {user.is_premium ? 'Premium Access Active' : 'Unlock AloneTV Premium'}
-                      </h4>
-                      <p className="text-xs text-text-muted leading-relaxed mt-1">
-                        Unlock high quality streaming, custom playlists, zero advertisements, offline downloads, and multi-language dubs.
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 py-2 border-y border-white/5">
-                      <div className="flex items-center gap-2 text-xs text-gray-300">
-                        <span className="text-purple-500 font-bold">✓</span>
-                        <span>4K & HD Playback</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-300">
-                        <span className="text-purple-500 font-bold">✓</span>
-                        <span>No Ads</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-300">
-                        <span className="text-purple-500 font-bold">✓</span>
-                        <span>Watch Parties</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-300">
-                        <span className="text-purple-500 font-bold">✓</span>
-                        <span>Multi-language Dubs</span>
+                      <div>
+                        <p className="text-sm font-medium text-white">{user.name}</p>
+                        <p className="text-[10px] text-zinc-500 font-mono">{user.email}</p>
                       </div>
                     </div>
-
-                    <div className="pt-2">
+                    <div className="flex gap-2">
                       {user.is_premium ? (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const updated = await updatePremiumStatus(false);
-                            if (updated) {
-                              setUser(prev => ({ ...prev, is_premium: false }));
-                            }
-                          }}
-                          className="w-full py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider bg-red-950/20 border border-red-500/30 text-red-400 hover:bg-red-950/45 hover:text-white transition-colors"
-                        >
-                          Downgrade to Free Plan
-                        </button>
+                        <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400 font-mono">Premium Active</span>
                       ) : (
                         <button
-                          type="button"
-                          onClick={() => router.push('/payment')}
-                          className="w-full py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider bg-gradient-to-r from-amber-500 via-purple-600 to-accent-purple hover:opacity-95 text-white shadow-lg shadow-purple-500/30 transition-all border border-purple-500/40"
+                          onClick={() => { setShowSettings(false); setIsUpgradeModalOpen(true) }}
+                          className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-medium transition-colors"
                         >
                           Upgrade to Premium
                         </button>
                       )}
                     </div>
                   </div>
-                </div>
-              </div>
-            )}
-          </div>
 
-          {/* Analytics Sidebar */}
-          {(activeTab === 'watchlist' || activeTab === 'history' || activeTab === 'playlists') && (
-            <div className="lg:w-[320px] shrink-0">
-              <div className="bg-bg-card border border-border p-5 rounded-2xl shadow-level-2 space-y-6 text-left">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted mb-4 font-mono">Watch Analytics</h3>
-                  
-                  <div className="flex items-center gap-4">
-                    <div 
-                      className="w-24 h-24 rounded-full relative flex items-center justify-center shadow-lg border border-white/10 shrink-0"
-                      style={{
-                        background: slices.length > 0 
-                          ? `conic-gradient(${slices.map((s, i) => `${s.color} 0% ${slices.slice(0, i+1).reduce((acc, curr) => acc + curr.percent, 0)}%`).join(', ') || '#4b5563 0% 100%'})`
-                          : '#374151'
-                      }}
+                  {/* Account actions */}
+                  <div className="space-y-2">
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-red-500/10 border border-white/[0.06] hover:border-red-500/20 text-zinc-400 hover:text-red-400 text-xs transition-colors text-left"
                     >
-                      <div className="w-18 h-18 rounded-full bg-bg-card flex flex-col items-center justify-center border border-white/5">
-                        <span className="text-lg font-bold text-text-primary">{continueWatching.length}</span>
-                        <span className="text-[9px] uppercase font-mono text-text-muted">Titles</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5 min-w-0">
-                      <p className="text-xs text-text-muted leading-snug">
-                        Total watch sessions: <span className="text-text-primary font-semibold font-mono">{continueWatching.length}</span>
-                      </p>
-                      <p className="text-xs text-text-muted leading-snug">
-                        Estimated watch time: <span className="text-accent-teal font-semibold font-mono">{continueWatching.length * 45} mins</span>
-                      </p>
-                    </div>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      Sign Out
+                    </button>
                   </div>
-                </div>
 
-                <div className="space-y-3">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted font-mono">Top Genres</h4>
-                  {sortedGenres.length > 0 ? (
-                    <div className="space-y-2">
-                      {slices.map((slice) => (
-                        <div key={slice.genre} className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: slice.color }} />
-                            <span className="text-text-primary font-medium">{slice.genre}</span>
-                          </div>
-                          <span className="text-text-muted font-mono">{slice.percent.toFixed(0)}%</span>
-                        </div>
-                      ))}
+                  {/* Premium info */}
+                  {!user.is_premium && (
+                    <div className="rounded-xl bg-gradient-to-br from-purple-500/5 to-blue-500/5 border border-purple-500/10 p-4">
+                      <h4 className="text-xs font-semibold text-white mb-2">Go Premium</h4>
+                      <ul className="space-y-1.5 mb-3">
+                        {['Ad-free streaming', '4K & HDR quality', 'Watch parties', 'Unlimited downloads'].map((f, i) => (
+                          <li key={i} className="flex items-center gap-2 text-[10px] text-zinc-400">
+                            <svg className="w-3 h-3 text-purple-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  ) : (
-                    <p className="text-xs text-text-muted italic">No genre data available yet. Start watching streams to populate stats.</p>
+                  )}
+
+                  {/* Danger zone */}
+                  {user.is_admin && (
+                    <div className="rounded-xl bg-red-500/5 border border-red-500/10 p-4">
+                      <h4 className="text-xs font-semibold text-red-400 mb-2">Admin</h4>
+                      <Link href="/admin" className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-mono transition-colors">
+                        Admin Panel
+                      </Link>
+                    </div>
                   )}
                 </div>
 
-                <div className="pt-4 border-t border-border flex items-center justify-between text-xs text-text-muted">
-                  <span>Watchlist Queue:</span>
-                  <span className="font-mono text-accent-purple font-semibold">{watchlist.length} items</span>
-                </div>
+                <p className="text-[9px] text-zinc-700 font-mono text-center pt-4 border-t border-white/[0.04] mt-4">
+                  VinayTV v1.0
+                </p>
               </div>
-            </div>
-          )}
-
-        </div>
-      </div>
-
-      {/* Avatar Selection Modal */}
-      {isAvatarModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-md bg-bg-card border border-border p-6 rounded-2xl shadow-level-4 text-left"
-          >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold text-text-primary">Choose Profile Avatar</h2>
-              <button 
-                onClick={() => setIsAvatarModalOpen(false)}
-                className="text-text-muted hover:text-text-primary"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              {AVATARS.map((av) => (
-                <button
-                  key={av.id}
-                  onClick={() => selectAvatar(av.url)}
-                  className="group relative flex flex-col items-center gap-1.5 focus:outline-none"
-                >
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-transparent group-hover:border-accent-purple transition-all shadow-md">
-                    <img src={av.url} alt={av.name} className="w-full h-full object-cover" />
-                  </div>
-                  <span className="text-[10px] font-mono text-text-muted group-hover:text-text-primary">{av.name}</span>
-                </button>
-              ))}
-            </div>
-
-            {avatarUrl && (
-              <button
-                onClick={removeAvatar}
-                className="w-full py-2 bg-white/5 border border-white/10 hover:bg-red-900/20 hover:border-red-500/30 text-red-500 text-xs font-semibold rounded-xl transition-colors font-mono"
-              >
-                Reset to Initials
-              </button>
-            )}
-          </motion.div>
-        </div>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Premium Upgrade Modal */}
-      <PremiumUpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-      />
+      <PremiumUpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} />
     </div>
   );
 }
