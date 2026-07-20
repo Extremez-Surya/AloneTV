@@ -92,6 +92,21 @@ export async function getTopAnime(
   return data.data;
 }
 
+export async function getTopAnimePages(
+  pages = 3,
+  filter?: 'airing' | 'upcoming' | 'bypopularity' | 'favorite'
+): Promise<JikanAnime[]> {
+  const results = await Promise.all(
+    Array.from({ length: pages }, (_, i) => getTopAnime(i + 1, filter))
+  );
+  const seen = new Set<number>()
+  return results.flat().filter(a => {
+    if (seen.has(a.mal_id)) return false
+    seen.add(a.mal_id)
+    return true
+  });
+}
+
 // Get Anime Details
 export async function getAnimeDetail(id: number): Promise<JikanAnime> {
   const data = await fetchJikan<{ data: JikanAnime }>(`/anime/${id}/full`);

@@ -23,7 +23,7 @@ export async function GET() {
       global_notice: settingsMap['global_notice'] || ''
     });
   } catch (err: any) {
-    console.error('Settings GET error:', err);
+    if (err?.code !== 'PGRST205') console.error('Settings GET error:', err);
     // If table settings is missing (e.g. PGRST205 relation does not exist),
     // or database is unconnected, fall back gracefully to empty settings.
     return NextResponse.json({

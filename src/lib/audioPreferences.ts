@@ -119,6 +119,14 @@ export function filterLanguagesBySource(
 /**
  * All supported audio languages for UI dropdowns
  */
+export const AUDIO_LANGUAGE_CODE_MAP: Record<AudioLanguage, string> = {
+  English: 'en', Hindi: 'hi', Tamil: 'ta', Telugu: 'te',
+  Kannada: 'kn', Malayalam: 'ml', Marathi: 'mr', Bengali: 'bn',
+  Spanish: 'es', French: 'fr', German: 'de', Portuguese: 'pt',
+  Italian: 'it', Russian: 'ru', Japanese: 'ja', Korean: 'ko',
+  Chinese: 'zh', Thai: 'th', Vietnamese: 'vi', Indonesian: 'id',
+};
+
 export const SUPPORTED_LANGUAGES: AudioLanguage[] = [
   'English',
   'Hindi',

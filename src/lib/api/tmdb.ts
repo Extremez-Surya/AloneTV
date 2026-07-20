@@ -10,6 +10,9 @@ import {
   TMDBSearchResult,
   TMDBVideo,
   TMDBGenre,
+  TMDBPerson,
+  TMDBPersonDetail,
+  TMDBCredit,
 } from '@/types/tmdb';
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -77,6 +80,7 @@ async function fetchTMDB<T>(
   maxRetries = 3
 ): Promise<T> {
   const apiKey = process.env.TMDB_API_KEY;
+  const accessToken = process.env.TMDB_ACCESS_TOKEN;
 
   if (!apiKey || apiKey === 'your_tmdb_api_key_here') {
     return createEmptyTMDBResponse<T>();
@@ -90,20 +94,24 @@ async function fetchTMDB<T>(
     return existingRequest as Promise<T>;
   }
 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
   const requestPromise = new Promise<T>((resolve) => {
     const makeRequest = async () => {
 
-      // Retry logic with exponential backoff
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
           const res = await fetch(url, {
             next: { revalidate },
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            // Add timeout and connection settings
-            signal: AbortSignal.timeout(10000), // 10 second timeout
+            headers,
+            signal: AbortSignal.timeout(10000),
           });
 
           if (!res.ok) {
@@ -499,8 +507,58 @@ export const getCollectionDetail = cache(async (collectionId: number): Promise<a
   );
 });
 
+// === ACTOR / PERSON ===
+
+export const getPopularActors = cache(async (page = 1): Promise<TMDBPerson[]> => {
+  const data = await fetchTMDB<{ results: TMDBPerson[] }>(
+    `/person/popular?page=${page}`,
+    3600
+  );
+  return data?.results ?? [];
+});
+
+export const searchActors = cache(async (query: string): Promise<TMDBPerson[]> => {
+  const data = await fetchTMDB<{ results: TMDBPerson[] }>(
+    `/search/person?query=${encodeURIComponent(query)}`,
+    1800
+  );
+  return data?.results ?? [];
+});
+
+export const getActorDetails = cache(async (actorId: number): Promise<TMDBPersonDetail | null> => {
+  try {
+    const data = await fetchTMDB<TMDBPersonDetail>(
+      `/person/${actorId}?append_to_response=combined_credits`,
+      3600
+    );
+    return data;
+  } catch {
+    return null;
+  }
+});
+
 // Export image helper
-export { getTMDBImageUrl };
+async function fetchTMDbPages<T>(
+  urlTemplate: (page: number) => string,
+  pages: number,
+  revalidate = 3600
+): Promise<T[]> {
+  const results = await Promise.all(
+    Array.from({ length: pages }, (_, i) =>
+      fetchTMDB<{ results: T[] }>(urlTemplate(i + 1), revalidate)
+    )
+  );
+  const seen = new Set<number>()
+  const all = results.flatMap(r => r.results || [])
+  return all.filter(item => {
+    const id = (item as any).id
+    if (seen.has(id)) return false
+    seen.add(id)
+    return true
+  });
+}
+
+export { fetchTMDbPages, getTMDBImageUrl };
 
 export async function findByImdbId(imdbId: string): Promise<{
   movie_results: TMDBMovie[];

@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       rating: item.vote_average || 0,
       quality: item.vote_average >= 7.6 ? '4K' : 'HD',
       genres: [item.media_type === 'movie' ? 'Movie' : 'TV Show'],
-      href: `/watch/${item.media_type}/${item.id}`,
+        href: `/detail/${item.media_type}/${item.id}`,
     }));
 
     return NextResponse.json({

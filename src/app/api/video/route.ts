@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
       mediaId,
       season ? parseInt(season) : undefined,
       episode ? parseInt(episode) : undefined,
-      { includeScreenScape: true },
     );
 
     return NextResponse.json({

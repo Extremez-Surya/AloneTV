@@ -371,7 +371,7 @@ export default function WatchPageClient({
         quality: voteAverage && voteAverage >= 7.6 ? '4K' : 'HD',
         genres: genres.map((g) => g.name),
         genreLabel: type === 'anime' ? 'Anime' : type === 'tv' ? 'TV Show' : 'Movie',
-        href: `/watch/${type}/${id}`,
+        href: `/detail/${type}/${id}`,
         season: type === 'tv' ? currentSeason : undefined,
         episode: type === 'tv' || isAnime ? currentEpisode : undefined,
         watchedAt: new Date().toISOString(),
@@ -563,11 +563,6 @@ export default function WatchPageClient({
                 <>
                   <VideoPlayer
                     sources={videoSources}
-                    title={localTitle}
-                    backdropUrl={backdropUrl}
-                    onNextEpisode={hasNextEpisode() ? playNextEpisode : undefined}
-                    hasNextEpisode={hasNextEpisode()}
-                    cast={cast}
                   />
                   
                   {/* Premium Upgrade Banner for Free Users */}
@@ -901,7 +896,7 @@ export default function WatchPageClient({
             </h2>
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
               {similar.slice(0, 10).map((item: any, index: number) => (
-                <ContentCard key={item.id} item={item} type={type as 'movie' | 'tv'} index={index} />
+                <ContentCard key={`similar-${item.id}`} item={item} type={type as 'movie' | 'tv'} index={index} />
               ))}
             </div>
           </section>
@@ -927,7 +922,7 @@ export default function WatchPageClient({
               {collectionDetail.parts
                 .filter((part: any) => part.id !== tmdbId)
                 .map((part: any, index: number) => (
-                  <ContentCard key={part.id} item={{ ...part, media_type: 'movie' }} type="movie" index={index} />
+                  <ContentCard key={`part-${part.id}`} item={{ ...part, media_type: 'movie' }} type="movie" index={index} />
                 ))}
             </div>
           </section>

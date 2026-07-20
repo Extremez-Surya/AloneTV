@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 
@@ -28,18 +27,12 @@ export default function SearchBar() {
   const router = useRouter();
 
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (isOpen && inputRef.current) inputRef.current.focus();
   }, [isOpen]);
 
   useEffect(() => {
     const debounceTimer = setTimeout(async () => {
-      if (query.length < 2) {
-        setResults([]);
-        return;
-      }
-
+      if (query.length < 2) { setResults([]); return; }
       setIsLoading(true);
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
@@ -52,7 +45,6 @@ export default function SearchBar() {
         setIsLoading(false);
       }
     }, 300);
-
     return () => clearTimeout(debounceTimer);
   }, [query]);
 
@@ -65,29 +57,18 @@ export default function SearchBar() {
         }
         return;
       }
-
-      if (e.key === 'Escape') {
-        setIsOpen(false);
-        setQuery('');
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedIndex(i => Math.min(i + 1, results.length - 1));
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedIndex(i => Math.max(i - 1, 0));
-      } else if (e.key === 'Enter' && results[selectedIndex]) {
-        e.preventDefault();
-        handleSelect(results[selectedIndex]);
-      }
+      if (e.key === 'Escape') { setIsOpen(false); setQuery(''); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, results.length - 1)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, 0)); }
+      else if (e.key === 'Enter' && results[selectedIndex]) { e.preventDefault(); handleSelect(results[selectedIndex]); }
     };
-
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, results, selectedIndex]);
 
   const handleSelect = (result: SearchResult) => {
     const type = result.media_type === 'tv' ? 'tv' : 'movie';
-    router.push(`/watch/${type}/${result.id}`);
+    router.push(`/detail/${type}/${result.id}`);
     setIsOpen(false);
     setQuery('');
   };
@@ -100,22 +81,18 @@ export default function SearchBar() {
 
   return (
     <>
-      {/* Search Button */}
       <button
         onClick={() => setIsOpen(true)}
-        aria-label="Open search catalog"
-        aria-haspopup="dialog"
-        aria-expanded={isOpen}
-        className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-gray-400 hover:text-white transition-colors"
+        aria-label="Search"
+        className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-sm text-zinc-400 hover:text-white transition-all border border-transparent hover:border-white/10"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <span className="hidden sm:inline">Search</span>
-        <kbd className="hidden sm:inline px-1.5 py-0.5 bg-white/10 rounded text-xs">/</kbd>
+        <kbd className="hidden sm:inline-flex px-1.5 py-0.5 bg-white/10 rounded text-[10px] font-mono">/</kbd>
       </button>
 
-      {/* Search Modal */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -125,17 +102,10 @@ export default function SearchBar() {
             className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           >
-            <div
-              className="max-w-2xl mx-auto pt-20 px-4"
-              onClick={e => e.stopPropagation()}
-            >
-              <motion.div
-                initial={{ y: -20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="relative"
-              >
+            <div className="max-w-2xl mx-auto pt-20 px-4" onClick={e => e.stopPropagation()}>
+              <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="relative">
                 <div className="relative">
-                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                   <input
@@ -144,19 +114,17 @@ export default function SearchBar() {
                     value={query}
                     onChange={e => setQuery(e.target.value)}
                     placeholder="Search movies, TV shows, anime..."
-                    aria-label="Search movies, TV shows, anime"
-                    className="w-full pl-12 pr-12 py-4 bg-bg-card border border-white/10 rounded-2xl text-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-purple"
+                    className="w-full pl-12 pr-12 py-4 bg-zinc-900/90 border border-white/10 rounded-2xl text-lg text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 backdrop-blur-xl"
                   />
                   {isLoading && (
                     <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                      <div className="w-5 h-5 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                   )}
                 </div>
 
-                {/* Results Dropdown */}
                 {query.length >= 2 && (
-                  <div className="mt-3 bg-bg-card border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+                  <div className="mt-3 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
                     {results.length > 0 ? (
                       <div className="max-h-[400px] overflow-y-auto">
                         {results.map((result, index) => (
@@ -169,62 +137,41 @@ export default function SearchBar() {
                             }`}
                           >
                             {getImageUrl(result.poster_path) ? (
-                              <img
-                                src={getImageUrl(result.poster_path)!}
-                                alt={`${result.title || result.name || 'Media'} poster`}
-                                className="w-12 h-16 object-cover rounded-lg"
-                              />
+                              <img src={getImageUrl(result.poster_path)!} alt="" className="w-12 h-16 object-cover rounded-lg" />
                             ) : (
-                              <div className="w-12 h-16 bg-white/10 rounded-lg flex items-center justify-center">
-                                <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <div className="w-12 h-16 bg-zinc-800 rounded-lg flex items-center justify-center">
+                                <svg className="w-6 h-6 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
                                 </svg>
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-white truncate">
-                                {result.title || result.name}
-                              </div>
-                              <div className="flex items-center gap-2 text-sm text-gray-400">
+                              <div className="font-medium text-white truncate">{result.title || result.name}</div>
+                              <div className="flex items-center gap-2 text-sm text-zinc-500">
                                 <span className="capitalize">{result.media_type}</span>
                                 <span>•</span>
                                 <span>{(result.release_date || result.first_air_date || '').split('-')[0]}</span>
                                 {result.vote_average > 0 && (
-                                  <>
-                                    <span>•</span>
-                                    <span className="text-yellow-400">★ {result.vote_average.toFixed(1)}</span>
-                                  </>
+                                  <><span>•</span><span className="text-yellow-400">★ {result.vote_average.toFixed(1)}</span></>
                                 )}
                               </div>
                             </div>
-                            <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-5 h-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
                           </button>
                         ))}
                       </div>
                     ) : !isLoading ? (
-                      <div className="p-8 text-center text-gray-400">
-                        No results found for "{query}"
-                      </div>
+                      <div className="p-8 text-center text-zinc-500">No results found for "{query}"</div>
                     ) : null}
                   </div>
                 )}
 
-                {/* Keyboard Hints */}
-                <div className="mt-4 flex items-center justify-center gap-6 text-xs text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 bg-white/10 rounded">↑↓</kbd>
-                    Navigate
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 bg-white/10 rounded">↵</kbd>
-                    Select
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 bg-white/10 rounded">Esc</kbd>
-                    Close
-                  </span>
+                <div className="mt-4 flex items-center justify-center gap-6 text-xs text-zinc-600">
+                  <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white/10 rounded">↑↓</kbd> Navigate</span>
+                  <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white/10 rounded">↵</kbd> Select</span>
+                  <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white/10 rounded">Esc</kbd> Close</span>
                 </div>
               </motion.div>
             </div>

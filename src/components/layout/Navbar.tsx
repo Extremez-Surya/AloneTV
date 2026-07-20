@@ -1,15 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { gsap } from 'gsap';
 import SearchBar from './SearchBar';
-import { 
-  getPreferredAudioLanguage, 
-  setPreferredAudioLanguage, 
-  SUPPORTED_LANGUAGES, 
-  type AudioLanguage 
-} from '@/lib/audioPreferences';
 import { createClient } from '@/lib/supabase/client';
 import { getLocalProfile, syncUserProfile } from '@/lib/supabase/profile';
 
@@ -23,326 +18,245 @@ const navLinks = [
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [globalLanguage, setGlobalLanguage] = useState<AudioLanguage>('English');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [globalNotice, setGlobalNotice] = useState<string>('');
+  const navbarRef = useRef<HTMLElement>(null);
+  const lastScrollY = useRef(0);
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
+      const currentScrollY = window.scrollY;
+      setIsScrolled(currentScrollY > 20);
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
     };
 
-    // Load initial preferred language
-    setGlobalLanguage(getPreferredAudioLanguage());
-
-    // Load initial avatar & user status
-    try {
-      setAvatarUrl(localStorage.getItem('alonetv_avatar'));
-      const profile = getLocalProfile();
-      if (profile) {
-        setIsLoggedIn(true);
-        const isUserAdmin = profile.demo ? Boolean(profile.is_admin) : (profile.email === 'theextremez2.0@gmail.com');
-        setIsPremium(Boolean(profile.is_premium) || isUserAdmin);
-        setIsAdmin(isUserAdmin);
-      }
-    } catch {
-      // ignore
+    const profile = getLocalProfile();
+    if (profile) {
+      setIsLoggedIn(true);
+      setIsPremium(Boolean(profile.is_premium));
+      setIsAdmin(Boolean(profile.is_admin) || profile.email === 'theextremez2.0@gmail.com');
     }
 
-    // Async server verification
-    syncUserProfile().then((profile) => {
-      if (profile) {
+    syncUserProfile().then((p) => {
+      if (p) {
         setIsLoggedIn(true);
-        const isUserAdmin = profile.demo ? Boolean(profile.is_admin) : (profile.email === 'theextremez2.0@gmail.com');
-        setIsPremium(Boolean(profile.is_premium) || isUserAdmin);
-        setIsAdmin(isUserAdmin);
-      } else {
-        setIsLoggedIn(false);
-        setIsPremium(false);
-        setIsAdmin(false);
+        setIsPremium(Boolean(p.is_premium));
+        setIsAdmin(Boolean(p.is_admin) || p.email === 'theextremez2.0@gmail.com');
       }
     });
 
-    // Fetch notice banner on mount
-    const fetchNotice = async () => {
-      try {
-        const local = getLocalProfile();
-        if (local && local.demo) {
-          const stored = localStorage.getItem('alonetv_demo_settings');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            setGlobalNotice(parsed.global_notice || '');
-          }
-        } else {
-          const res = await fetch('/api/settings');
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.global_notice) {
-              setGlobalNotice(data.global_notice);
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Failed to load global notice settings:', e);
-      }
-    };
-    fetchNotice();
+    try { setAvatarUrl(localStorage.getItem('alonetv_avatar')); } catch {}
 
-    window.addEventListener('scroll', handleScroll);
-    
-    // Listen for language changes from elsewhere
-    const handleLanguageSync = () => {
-      setGlobalLanguage(getPreferredAudioLanguage());
-    };
-    window.addEventListener('alonetv_language_changed', handleLanguageSync);
+    window.addEventListener('scroll', handleScroll, { passive: true });
 
     const handleAvatarSync = () => {
-      try {
-        setAvatarUrl(localStorage.getItem('alonetv_avatar'));
-      } catch {
-        // ignore
-      }
+      try { setAvatarUrl(localStorage.getItem('alonetv_avatar')); } catch {}
+    };
+    const handleUserSync = () => {
+      const p = getLocalProfile();
+      if (p) { setIsLoggedIn(true); setIsPremium(Boolean(p.is_premium)); setIsAdmin(Boolean(p.is_admin)); }
+      else { setIsLoggedIn(false); setIsPremium(false); setIsAdmin(false); }
     };
     window.addEventListener('alonetv_avatar_changed', handleAvatarSync);
-
-    const handleUserSync = () => {
-      const profile = getLocalProfile();
-      if (profile) {
-        setIsLoggedIn(true);
-        const isUserAdmin = profile.demo ? Boolean(profile.is_admin) : (profile.email === 'theextremez2.0@gmail.com');
-        setIsPremium(Boolean(profile.is_premium) || isUserAdmin);
-        setIsAdmin(isUserAdmin);
-      } else {
-        setIsLoggedIn(false);
-        setIsPremium(false);
-        setIsAdmin(false);
-      }
-    };
     window.addEventListener('alonetv_user_changed', handleUserSync);
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('alonetv_language_changed', handleLanguageSync);
       window.removeEventListener('alonetv_avatar_changed', handleAvatarSync);
       window.removeEventListener('alonetv_user_changed', handleUserSync);
     };
   }, []);
 
-  const handleGlobalLanguageChange = (lang: AudioLanguage) => {
-    setPreferredAudioLanguage(lang);
-    setGlobalLanguage(lang);
-    // Dispatch custom event to notify watch page & player components
-    window.dispatchEvent(new Event('alonetv_language_changed'));
-  };
+  useEffect(() => {
+    if (navbarRef.current) {
+      gsap.to(navbarRef.current, {
+        y: isVisible ? 0 : -100,
+        duration: 0.3,
+        ease: 'power2.out',
+      });
+    }
+  }, [isVisible]);
 
   return (
     <>
-      {globalNotice && (
-        <div className="fixed top-0 left-0 right-0 z-[100] h-9 bg-gradient-to-r from-purple-950 via-indigo-950 to-purple-950 text-white text-center py-1.5 px-4 text-xs font-mono font-bold flex items-center justify-center gap-2 border-b border-purple-500/20 shadow-lg select-none animate-fade-in truncate">
-          <span className="text-[10px] bg-purple-500/25 px-1.5 py-0.5 rounded border border-purple-400/20 text-purple-300 font-mono">📢 NOTICE</span>
-          <span>{globalNotice}</span>
-        </div>
-      )}
       <nav
-        style={{ top: globalNotice ? '36px' : '0px' }}
-        className={`fixed left-0 right-0 z-50 h-16 border-b transition-all duration-200 ${
-          isScrolled
-            ? 'bg-bg-card/90 backdrop-blur-md border-border shadow-level-1'
-            : 'bg-bg-card border-transparent'
-        }`}
+        ref={navbarRef}
+        className="fixed top-0 left-0 right-0 z-50 h-[var(--navbar-height)]"
       >
-      <div className="max-w-[1400px] mx-auto h-full px-4 sm:px-6">
-        <div className="flex items-center justify-between h-full">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-text-primary flex items-center justify-center transition-transform group-hover:scale-95">
-              <svg
-                className="w-4 h-4 text-bg-card"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"
-                />
-              </svg>
-            </div>
-            <span className="text-lg font-semibold tracking-tight text-text-primary">
-              AloneTV
-            </span>
-          </Link>
-
-          {/* Desktop Nav Links */}
-          <div className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="px-3 py-1.5 text-sm font-medium text-text-muted hover:text-text-primary transition-colors rounded-full hover:bg-bg-secondary"
-              >
-                {link.label}
+        <div className={`h-full transition-all duration-500 ${
+          isScrolled
+            ? 'bg-black/80 backdrop-blur-xl border-b border-white/[0.06] shadow-lg'
+            : 'bg-transparent'
+        }`}>
+          <div className="max-w-[1400px] mx-auto h-full px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-full">
+              <Link href="/" className="flex items-center gap-3 group shrink-0">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/20"
+                >
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                  </svg>
+                </motion.div>
+                <span className="text-lg font-bold tracking-tight text-white">
+                  Vinay<span className="text-purple-400">TV</span>
+                </span>
               </Link>
-            ))}
-          </div>
 
-          {/* Right Actions */}
-          <div className="flex items-center gap-3">
-            {/* Search */}
-            <SearchBar />
-
-            {/* Global Language Selector */}
-            <div className="relative">
-              <select
-                value={globalLanguage}
-                onChange={(e) => handleGlobalLanguageChange(e.target.value as AudioLanguage)}
-                className="px-2.5 py-1 text-xs font-semibold rounded-md border border-border bg-bg-secondary text-text-primary cursor-pointer hover:border-text-muted transition-colors focus:outline-none"
-              >
-                {SUPPORTED_LANGUAGES.map((lang) => (
-                  <option key={lang} value={lang}>
-                    {lang}
-                  </option>
+              <div className="hidden md:flex items-center gap-1">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="relative px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors rounded-full hover:bg-white/[0.06]"
+                  >
+                    {link.label}
+                  </Link>
                 ))}
-              </select>
-            </div>
-
-            {/* Action CTAs */}
-            {!isLoggedIn && (
-              <div className="hidden sm:flex items-center gap-1.5">
-                <Link
-                  href="/signin"
-                  className="flex items-center justify-center px-3 text-xs font-medium text-text-primary rounded-md h-7 border border-border hover:bg-bg-secondary transition-colors"
-                >
-                  Log In
-                </Link>
-                <Link
-                  href="/signin"
-                  className="flex items-center justify-center px-3 text-xs font-semibold text-bg-card bg-text-primary rounded-md h-7 hover:bg-black/90 transition-colors"
-                >
-                  Sign Up
-                </Link>
               </div>
-            )}
 
-            {/* Premium Badge */}
-            {isLoggedIn && isPremium && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-gradient-to-r from-amber-500 to-yellow-500 text-black border border-yellow-400/30 shadow-md shadow-yellow-500/10 animate-pulse font-mono">
-                👑 Premium
-              </span>
-            )}
+              <div className="flex items-center gap-2 sm:gap-3">
+                <SearchBar />
 
-            {/* Admin Dashboard shortcut */}
-            {isLoggedIn && isAdmin && (
-              <Link
-                href="/admin"
-                className="hidden sm:inline-flex items-center justify-center px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-wider rounded-md bg-purple-500/15 border border-purple-500/25 text-purple-400 hover:bg-purple-500 hover:text-white transition-all font-mono h-7 shrink-0"
-              >
-                🛡️ Admin
-              </Link>
-            )}
-
-            {/* User Menu / Profile */}
-            <Link
-              href="/profile"
-              className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center bg-text-primary text-bg-card font-semibold text-xs transition-transform hover:scale-95 border border-border"
-            >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                'V'
-              )}
-            </Link>
-
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="Toggle navigation menu"
-              aria-expanded={isMobileMenuOpen}
-              className="md:hidden p-1.5 text-text-muted hover:text-text-primary transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {isMobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                {!isLoggedIn && (
+                  <div className="hidden sm:flex items-center gap-2">
+                    <Link
+                      href="/signin"
+                      className="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white transition-colors rounded-lg hover:bg-white/[0.06]"
+                    >
+                      Log In
+                    </Link>
+                    <Link
+                      href="/signin"
+                      className="px-4 py-2 text-sm font-semibold text-black bg-white hover:bg-zinc-200 rounded-lg transition-all hover:scale-105 active:scale-95"
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
                 )}
-              </svg>
-            </button>
+
+                {isLoggedIn && isPremium && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-400 border border-amber-500/20"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-glow-pulse" />
+                    Premium
+                  </motion.span>
+                )}
+
+                {isLoggedIn && isAdmin && (
+                  <Link
+                    href="/admin"
+                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 transition-all"
+                  >
+                    Admin
+                  </Link>
+                )}
+
+                <Link
+                  href="/profile"
+                  className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-white/10 text-white font-semibold text-xs border border-white/10 hover:border-white/30 transition-all hover:scale-105"
+                >
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  )}
+                </Link>
+
+                <button
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  aria-label="Toggle menu"
+                  className="md:hidden p-2 text-zinc-400 hover:text-white transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    {isMobileMenuOpen ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    )}
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-bg-card border-b border-border shadow-level-3"
-          >
-            <div className="px-4 py-3 space-y-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block px-3 py-2.5 text-sm font-medium text-text-muted hover:text-text-primary hover:bg-bg-secondary rounded-lg transition-colors"
-                >
-                  {link.label}
-                </Link>
-              ))}
-              {isLoggedIn ? (
-                <div className="pt-2.5 border-t border-border flex flex-col gap-1.5 text-left font-mono">
-                  <div className="text-[10px] text-text-muted uppercase tracking-wider px-3">
-                    Status: {isAdmin ? 'Admin 🛡️' : isPremium ? 'Premium Member 👑' : 'Free Watcher'}
-                  </div>
-                  {isAdmin && (
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="md:hidden bg-black/95 backdrop-blur-xl border-b border-white/[0.06]"
+            >
+              <div className="px-4 py-4 space-y-1">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block px-4 py-3 text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/[0.04] rounded-xl transition-all"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+                {isLoggedIn ? (
+                  <div className="pt-3 mt-3 border-t border-white/[0.06] space-y-2">
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="block w-full py-3 text-center text-xs font-bold uppercase tracking-wider rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400"
+                      >
+                        Admin Dashboard
+                      </Link>
+                    )}
                     <Link
-                      href="/admin"
+                      href="/profile"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="w-full py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-xs font-bold uppercase tracking-wider text-white text-center mt-1"
+                      className="block w-full py-3 text-center text-xs font-bold uppercase tracking-wider rounded-xl bg-white/5 border border-white/10 text-white"
                     >
-                      Admin Dashboard
+                      Profile
                     </Link>
-                  )}
-                  <Link
-                    href="/profile"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="w-full py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded-lg text-xs font-bold uppercase tracking-wider text-text-primary text-center"
-                  >
-                    Go to Profile
-                  </Link>
-                </div>
-              ) : (
-                <div className="pt-2 border-t border-border flex gap-2">
-                  <Link
-                    href="/signin"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex-1 flex items-center justify-center px-3 py-2 text-xs font-semibold text-text-primary rounded-md border border-border hover:bg-bg-secondary transition-colors"
-                  >
-                    Log In
-                  </Link>
-                  <Link
-                    href="/signin"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex-1 flex items-center justify-center px-3 py-2 text-xs font-semibold text-bg-card bg-text-primary rounded-md hover:bg-black/90 transition-colors"
-                  >
-                    Sign Up
-                  </Link>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </nav>
+                  </div>
+                ) : (
+                  <div className="pt-3 mt-3 border-t border-white/[0.06] flex gap-2">
+                    <Link
+                      href="/signin"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex-1 py-3 text-center text-sm font-semibold rounded-xl bg-white/5 border border-white/10 text-white"
+                    >
+                      Log In
+                    </Link>
+                    <Link
+                      href="/signin"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex-1 py-3 text-center text-sm font-semibold rounded-xl bg-white text-black"
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </nav>
     </>
   );
 }

@@ -1,49 +1,40 @@
-import type { Metadata } from 'next';
-import HeroBanner from '@/components/layout/HeroBanner';
-import CollectionRail from '@/components/content/CollectionRail';
-import { getWebSeriesPageModel } from '@/lib/ott-collections';
+import type { Metadata } from 'next'
+import MovieGrid from '@/components/layout/MovieGrid'
+import { getWebSeriesPageModel } from '@/lib/ott-collections'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'Web Series Catalog - Stream Free Serialized Stories | AloneTV',
-  description: 'Stream popular web series, serialized tv dramas, and streaming originals in high quality. Binge entire seasons for free without registration.',
+  title: 'Web Series - Premium Streaming Originals | VinayTV',
+  description: 'Stream popular web series, serialized dramas, and streaming originals in high quality. Binge entire seasons.',
   keywords: ['web series', 'stream web series', 'serialized stories', 'free web series', 'binge watch shows'],
-  alternates: {
-    canonical: 'https://vinaytv.vercel.app/web-series',
-  },
+  alternates: { canonical: 'https://vinaytv.vercel.app/web-series' },
   openGraph: {
-    title: 'Web Series Catalog - Stream Free Serialized Stories | AloneTV',
-    description: 'Stream popular web series, serialized tv dramas, and streaming originals in high quality. Binge entire seasons for free without registration.',
+    title: 'Web Series - Premium Streaming Originals | VinayTV',
+    description: 'Stream popular web series, serialized dramas, and streaming originals in high quality.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Web Series Catalog - Stream Free Serialized Stories | AloneTV',
-    description: 'Stream popular web series, serialized tv dramas, and streaming originals in high quality. Binge entire seasons for free without registration.',
+    title: 'Web Series - Premium Streaming Originals | VinayTV',
+    description: 'Stream popular web series, serialized dramas, and streaming originals in high quality.',
   },
-};
+}
 
 export default async function WebSeriesPage() {
-  const model = await getWebSeriesPageModel();
+  const model = await getWebSeriesPageModel()
 
   return (
     <div className="min-h-screen bg-bg-primary pb-12">
-      <HeroBanner items={model.heroItems} />
-
-      <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6">
-        <div className="rounded-2xl border border-border bg-bg-card p-6 shadow-level-3">
-          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-accent-purple">Web Series</p>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-[-1.28px] text-text-primary">
-            A dedicated catalog for serialized streaming stories only.
-          </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-text-muted">
-            This page surfaces the web-series collection directly, so you can browse every available web series without the rest of the TV catalog mixed in.
-          </p>
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-purple-400">Web Series</p>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-bold text-white tracking-tight">Serialized stories, endless entertainment.</h1>
+          </div>
         </div>
+        <MovieGrid sections={model.sections} />
       </div>
-
-      {model.sections.map((section) => (
-        <CollectionRail key={section.id} section={section} />
-      ))}
     </div>
-  );
+  )
 }

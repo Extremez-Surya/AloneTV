@@ -14,9 +14,9 @@ import {
 import { getAnimeDetail } from '@/lib/api/jikan';
 import { getTVMazeShowDetail } from '@/lib/api/tvmaze';
 import { getKitsuAnimeDetail } from '@/lib/api/kitsu';
-import PlayerPageClient from '@/components/video/PlayerPageClient';
+import DetailPageClient from '@/components/detail/DetailPageClient';
 
-interface WatchPageProps {
+interface DetailPageProps {
   params: Promise<{
     type: string;
     id: string;
@@ -100,43 +100,43 @@ async function getMediaInfo(type: string, id: string) {
   return { title, overview, posterPath };
 }
 
-export async function generateMetadata({ params }: WatchPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: DetailPageProps): Promise<Metadata> {
   const resolvedParams = await params;
   const { type, id } = resolvedParams;
 
   const info = await getMediaInfo(type, id);
   if (!info.title) {
     return {
-      title: 'Watch Free Streams | AloneTV',
-      description: 'Stream movies, TV shows, and anime in HD quality for free.',
+      title: 'Media Details | VinayTV',
+      description: 'Browse movie and show details on VinayTV.',
     };
   }
 
   const cleanDescription = info.overview.slice(0, 160) + (info.overview.length > 160 ? '...' : '');
 
   return {
-    title: `Watch ${info.title} Free Online in 4K | AloneTV`,
-    description: cleanDescription || `Stream ${info.title} in HD quality with multi-language audio dubs and translated subtitles on AloneTV.`,
-    keywords: [info.title, `watch ${info.title}`, `stream ${info.title} free`, type, '4k streaming', 'AloneTV'],
+    title: `${info.title} — Details & Streaming Info | VinayTV`,
+    description: cleanDescription || `Browse ${info.title} details, cast, seasons, and start streaming on VinayTV.`,
+    keywords: [info.title, type, 'streaming', 'VinayTV'],
     alternates: {
-      canonical: `https://vinaytv.vercel.app/watch/${type}/${id}`,
+      canonical: `https://vinaytv.vercel.app/detail/${type}/${id}`,
     },
     openGraph: {
-      title: `Watch ${info.title} Free Online in 4K | AloneTV`,
+      title: `${info.title} — Details & Streaming Info | VinayTV`,
       description: cleanDescription,
       type: 'video.other',
       images: info.posterPath ? [{ url: info.posterPath }] : [],
     },
     twitter: {
       card: 'summary_large_image',
-      title: `Watch ${info.title} Free Online in 4K | AloneTV`,
+      title: `${info.title} — Details & Streaming Info | VinayTV`,
       description: cleanDescription,
       images: info.posterPath ? [info.posterPath] : [],
     },
   };
 }
 
-export default async function WatchPage({ params }: WatchPageProps) {
+export default async function DetailPage({ params }: DetailPageProps) {
   const resolvedParams = await params;
   let { type, id } = resolvedParams;
 
@@ -159,17 +159,13 @@ export default async function WatchPage({ params }: WatchPageProps) {
   let tmdbId = 0;
   let belongsToCollection: any = null;
 
-  // 1. Resolve ID to numeric TMDB ID or fetch fallback details
   try {
     if (id.startsWith('tt')) {
-      // It is an IMDb ID
       imdbId = id;
-      // Resolve using TMDB /find API
       const findResult = await findByImdbId(id);
       if (findResult) {
         const movieMatch = findResult.movie_results?.[0];
         const tvMatch = findResult.tv_results?.[0];
-        
         if (movieMatch) {
           tmdbId = movieMatch.id;
           type = 'movie';
@@ -179,7 +175,6 @@ export default async function WatchPage({ params }: WatchPageProps) {
         }
       }
 
-      // If we couldn't resolve TMDB ID, fallback to OMDB API
       if (!tmdbId) {
         const { getMovieByIMDB } = await import('@/lib/api/omdb');
         const omdbMovie = await getMovieByIMDB(id);
@@ -196,7 +191,6 @@ export default async function WatchPage({ params }: WatchPageProps) {
         }
       }
     } else if (id.startsWith('tvmaze-')) {
-      // It is a TVmaze ID
       const tvmazeId = parseInt(id.replace('tvmaze-', ''));
       if (!isNaN(tvmazeId)) {
         const show = await getTVMazeShowDetail(tvmazeId);
@@ -210,7 +204,6 @@ export default async function WatchPage({ params }: WatchPageProps) {
           genres = (show.genres || []).map((g, i) => ({ id: i + 1, name: g }));
           imdbId = show.externals?.imdb || '';
 
-          // Try mapping to TMDB ID using the IMDb ID or title search
           if (imdbId) {
             const findResult = await findByImdbId(imdbId);
             if (findResult?.tv_results?.[0]) {
@@ -227,7 +220,6 @@ export default async function WatchPage({ params }: WatchPageProps) {
         }
       }
     } else if (id.startsWith('kitsu-')) {
-      // It is a Kitsu ID
       const kitsuId = id.replace('kitsu-', '');
       const anime = await getKitsuAnimeDetail(kitsuId);
       if (anime) {
@@ -240,7 +232,6 @@ export default async function WatchPage({ params }: WatchPageProps) {
         originalLanguage = 'ja';
         genres = [{ id: 1, name: 'Anime' }];
 
-        // Try mapping to TMDB ID by title
         const tmdbSearch = await searchMulti(anime.title);
         const matched = tmdbSearch.find(r => r.media_type === 'tv' || r.media_type === 'movie');
         if (matched) {
@@ -249,14 +240,12 @@ export default async function WatchPage({ params }: WatchPageProps) {
         }
       }
     } else {
-      // Regular TMDB ID
       const mediaId = parseInt(id);
       if (!isNaN(mediaId)) {
         tmdbId = mediaId;
       }
     }
 
-    // 2. Fetch full details from TMDB if we have a valid tmdbId
     if (tmdbId) {
       if (type === 'movie') {
         const movie = await getMovieDetail(tmdbId);
@@ -294,7 +283,6 @@ export default async function WatchPage({ params }: WatchPageProps) {
         }
       }
     } else if (type === 'anime' && !title) {
-      // If it was regular TMDB ID lookup for anime that didn't resolve to a TMDB ID, fallback to Jikan
       const mediaId = parseInt(id);
       if (!isNaN(mediaId)) {
         const anime = await getAnimeDetail(mediaId);
@@ -311,28 +299,20 @@ export default async function WatchPage({ params }: WatchPageProps) {
             name: g.name,
           })) || [];
 
-          // Try mapping to TMDB ID
           const searchTitle = anime.title_english || anime.title || '';
           if (searchTitle) {
             const tmdbSearch = await searchMulti(searchTitle);
             const isMalMovie = anime.type?.toLowerCase() === 'movie';
-            
-            // Prefer exact type match (movie vs tv series)
-            let matched = tmdbSearch.find(r => 
+            let matched = tmdbSearch.find(r =>
               isMalMovie ? r.media_type === 'movie' : r.media_type === 'tv'
             );
-            
-            // Fallback to any matching movie or tv if preferred type not found
             if (!matched) {
               matched = tmdbSearch.find(r => r.media_type === 'tv' || r.media_type === 'movie');
             }
-
             if (matched) {
               tmdbId = matched.id;
-              type = matched.media_type; // Update type to matched media type (tv or movie)
-
+              type = matched.media_type;
               if (type === 'tv') {
-                // Re-fetch details using matched TMDB ID if found
                 const tv = await getTVShowDetail(tmdbId);
                 if (tv && tv.id) {
                   cast = tv.credits?.cast?.slice(0, 10) || [];
@@ -342,7 +322,6 @@ export default async function WatchPage({ params }: WatchPageProps) {
                   similar = similarData || [];
                 }
               } else if (type === 'movie') {
-                // Re-fetch movie details using matched TMDB Movie ID
                 const movie = await getMovieDetail(tmdbId);
                 if (movie && movie.id) {
                   cast = movie.credits?.cast?.slice(0, 10) || [];
@@ -372,7 +351,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
     "image": posterPath ? (posterPath.startsWith('http') ? posterPath : `https://image.tmdb.org/t/p/w780${posterPath}`) : undefined,
     "dateCreated": releaseDate,
     "genre": genres.map(g => g.name),
-    "actor": cast.slice(0, 5).map(c => ({
+    "actor": cast.slice(0, 5).map((c: any) => ({
       "@type": "Person",
       "name": c.name
     }))
@@ -381,7 +360,7 @@ export default async function WatchPage({ params }: WatchPageProps) {
   return (
     <>
       <JsonLd schema={mediaSchema} />
-      <PlayerPageClient
+      <DetailPageClient
         type={type}
         id={id}
         tmdbId={tmdbId || id}
@@ -389,8 +368,16 @@ export default async function WatchPage({ params }: WatchPageProps) {
         title={title}
         posterPath={posterPath}
         backdropPath={backdropPath}
-        isAnime={type === 'anime'}
+        overview={overview}
+        voteAverage={voteAverage}
+        releaseDate={releaseDate}
+        genres={genres}
+        cast={cast}
+        similar={similar}
         seasons={seasons}
+        isAnime={type === 'anime'}
+        originalLanguage={originalLanguage}
+        belongsToCollection={belongsToCollection}
       />
     </>
   );

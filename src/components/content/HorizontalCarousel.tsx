@@ -2,8 +2,12 @@
 
 import { useRef, useState, useEffect, ReactNode } from 'react';
 import { motion } from 'framer-motion';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import ContentCard from './ContentCard';
 import type { TMDBMovie, TMDBTVShow } from '@/types/tmdb';
+
+gsap.registerPlugin(ScrollTrigger);
 
 interface HorizontalCarouselProps {
   title: string;
@@ -19,6 +23,7 @@ export default function HorizontalCarousel({
   icon,
 }: HorizontalCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
@@ -37,66 +42,70 @@ export default function HorizontalCarousel({
     return () => ref?.removeEventListener('scroll', checkScrollPosition);
   }, [items]);
 
+  useEffect(() => {
+    return () => { ScrollTrigger.getAll().forEach(t => t.kill()); };
+  }, []);
+
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
-      const scrollAmount = 300;
       scrollRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        left: direction === 'left' ? -500 : 500,
         behavior: 'smooth',
       });
     }
   };
 
   return (
-    <section className="py-8">
-      {/* Section Header */}
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 mb-4">
-        <div className="flex items-center gap-3">
-          {icon && (
-            <span className="text-accent-purple">{icon}</span>
-          )}
-          <h2 className="text-xl font-semibold text-white">{title}</h2>
+    <section ref={sectionRef} className="py-6 sm:py-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {icon && <span className="text-purple-500">{icon}</span>}
+            <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">{title}</h2>
+          </div>
+          <div className="hidden sm:flex items-center gap-2">
+            <button
+              onClick={() => scroll('left')}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                canScrollLeft
+                  ? 'bg-white/10 hover:bg-white/20 text-white'
+                  : 'bg-white/5 text-zinc-600 cursor-not-allowed'
+              }`}
+              aria-label="Scroll left"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={() => scroll('right')}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                canScrollRight
+                  ? 'bg-white/10 hover:bg-white/20 text-white'
+                  : 'bg-white/5 text-zinc-600 cursor-not-allowed'
+              }`}
+              aria-label="Scroll right"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Carousel Container */}
       <div className="relative group/carousel">
-        {/* Left Arrow */}
-        <button
-          onClick={() => scroll('left')}
-          className={`absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-black/80 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black ${
-            canScrollLeft ? 'cursor-pointer' : 'pointer-events-none opacity-0'
-          }`}
-          aria-label="Scroll left"
-        >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-
-        {/* Scrollable Content */}
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto scrollbar-hide px-4 sm:px-6 snap-x snap-mandatory"
+          className="flex gap-3 overflow-x-auto scrollbar-hide px-4 sm:px-6 lg:px-8 snap-x snap-mandatory"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {items.map((item, index) => (
-            <ContentCard key={`${type}-${item.id}`} item={item} type={type} index={index} />
+            <div key={`${type}-${item.id}`} className="snap-start shrink-0">
+              <ContentCard item={item} type={type} index={index} />
+            </div>
           ))}
         </div>
-
-        {/* Right Arrow */}
-        <button
-          onClick={() => scroll('right')}
-          className={`absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-black/80 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black ${
-            canScrollRight ? 'cursor-pointer' : 'pointer-events-none opacity-0'
-          }`}
-          aria-label="Scroll right"
-        >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
       </div>
     </section>
   );
