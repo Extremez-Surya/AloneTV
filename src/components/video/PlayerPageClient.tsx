@@ -132,30 +132,30 @@ export default function PlayerPageClient({
           setAvailableLanguages(prev => [...new Set([...hlsLangs, ...prev])])
         }
       } else if (sources.length === 0) {
-        setSourceError('No streaming sources available for this title.')
+        setSourceError('No streaming sources available for this title.');
       }
-    } catch {
-      setSourceError('Failed to load video sources. Please try again.')
+    } catch (error) {
+      setSourceError('Failed to load video sources. Please try again.');
     } finally {
-      setIsLoadingSources(false)
+      setIsLoadingSources(false);
     }
-  }, [type, videoId, currentSeason, currentEpisode])
+  }, [type, videoId, currentSeason, currentEpisode]);
 
   useEffect(() => {
-    fetchSources()
-  }, [fetchSources])
+    fetchSources();
+  }, [fetchSources]);
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('alonetv_premium')
+      const stored = localStorage.getItem('alonetv_premium');
       if (stored) {
-        const p = JSON.parse(stored)
-        setIsLoggedIn(true)
-        setIsPremium(p.isPremium || false)
+        const p = JSON.parse(stored);
+        setIsLoggedIn(true);
+        setIsPremium(p.isPremium || false);
       }
-    } catch {}
-    setIsCheckingPremium(false)
-  }, [])
+    } catch (error) {}
+    setIsCheckingPremium(false);
+  }, []);
 
   const handleAudioTracksReady = (tracks: AudioTrackInfo[]) => {
     if (tracks.length > 0) {
