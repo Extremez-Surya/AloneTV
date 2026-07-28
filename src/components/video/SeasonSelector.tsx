@@ -103,6 +103,7 @@ export default function SeasonSelector({
         <label className="text-xs font-semibold uppercase tracking-wider text-text-muted font-mono">Season:</label>
         <div className="relative">
           <button
+            type="button"
             onClick={() => setShowSeasonDropdown(!showSeasonDropdown)}
             className="flex items-center gap-2 px-3.5 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium text-xs sm:text-sm border border-white/5 transition-colors focus:outline-none"
           >
@@ -117,6 +118,7 @@ export default function SeasonSelector({
             <div className="absolute top-full left-0 mt-2 w-60 max-h-72 overflow-y-auto bg-[#0f0f14] border border-white/10 rounded-xl shadow-2xl z-50 animate-fade-in scrollbar-hide">
               {seasons.map((season) => (
                 <button
+                  type="button"
                   key={season.season_number}
                   onClick={() => handleSeasonChange(season.season_number)}
                   className={`w-full px-4 py-2.5 text-left hover:bg-white/5 transition-colors flex items-center justify-between text-xs sm:text-sm ${
@@ -157,6 +159,7 @@ export default function SeasonSelector({
 
             return (
               <button
+                type="button"
                 key={ep.episode_number}
                 onClick={() => handleEpisodeClick(ep.episode_number)}
                 className={`flex-shrink-0 w-[240px] sm:w-[280px] bg-[#0c0c11]/45 border text-left rounded-xl overflow-hidden transition-all duration-300 relative focus:outline-none ${

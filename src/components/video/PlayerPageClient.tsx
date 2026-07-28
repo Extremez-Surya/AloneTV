@@ -175,6 +175,16 @@ export default function PlayerPageClient({
   const sourcesForLanguage = findSourcesForLanguage(videoSources, selectedLanguage)
   const effectiveSources = sourcesForLanguage.length > 0 ? sourcesForLanguage : videoSources
 
+  const handleSeasonChange = (seasonNum: number) => {
+    setCurrentSeason(seasonNum)
+    setCurrentEpisode(1)
+  }
+
+  const handleEpisodeChange = (seasonNum: number, episodeNum: number) => {
+    setCurrentSeason(seasonNum)
+    setCurrentEpisode(episodeNum)
+  }
+
   return (
     <div className="h-screen bg-black flex flex-col relative">
       {/* Top bar */}
@@ -206,8 +216,8 @@ export default function PlayerPageClient({
               seasons={seasons}
               currentSeason={currentSeason}
               currentEpisode={currentEpisode}
-              onSelectSeason={setCurrentSeason}
-              onSelectEpisode={setCurrentEpisode}
+              onSelectSeason={handleSeasonChange}
+              onSelectEpisode={handleEpisodeChange}
             />
           )}
           <button
