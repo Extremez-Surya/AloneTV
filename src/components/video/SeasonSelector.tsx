@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Season {
   season_number: number;
@@ -42,11 +42,6 @@ export default function SeasonSelector({
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [isMouseDown, setIsMouseDown] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeftPos, setScrollLeftPos] = useState(0);
-
   // Sync current season data details
   useEffect(() => {
     const season = seasons.find(s => s.season_number === currentSeason);
@@ -79,15 +74,6 @@ export default function SeasonSelector({
     fetchEpisodes();
   }, [tvId, currentSeason]);
 
-  // Auto-scroll active episode into view
-  useEffect(() => {
-    if (!scrollContainerRef.current) return;
-    const activeEl = scrollContainerRef.current.querySelector(`[data-episode="${currentEpisode}"]`);
-    if (activeEl) {
-      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
-  }, [currentEpisode, currentSeason, episodes]);
-
   const handleSeasonChange = (seasonNum: number) => {
     onSelectSeason(seasonNum);
     setShowSeasonDropdown(false);
@@ -95,34 +81,7 @@ export default function SeasonSelector({
 
   const handleEpisodeClick = (episodeNum: number) => {
     onSelectEpisode(currentSeason, episodeNum);
-  };
-
-  const scrollContainer = (direction: 'left' | 'right') => {
-    if (!scrollContainerRef.current) return;
-    const scrollAmount = scrollContainerRef.current.clientWidth * 0.75;
-    scrollContainerRef.current.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
-      behavior: 'smooth'
-    });
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!scrollContainerRef.current) return;
-    setIsMouseDown(true);
-    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
-    setScrollLeftPos(scrollContainerRef.current.scrollLeft);
-  };
-
-  const handleMouseLeaveOrUp = () => {
-    setIsMouseDown(false);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isMouseDown || !scrollContainerRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - scrollContainerRef.current.offsetLeft;
-    const walk = (x - startX) * 1.5;
-    scrollContainerRef.current.scrollLeft = scrollLeftPos - walk;
+    setShowEpisodeDropdown(false);
   };
 
   // Generate fallback episode list if API is fetching or fails
@@ -138,14 +97,15 @@ export default function SeasonSelector({
   };
 
   const activeEpisodes = episodes.length > 0 ? episodes : getFallbackEpisodes();
+  const currentEpData = activeEpisodes.find(e => e.episode_number === currentEpisode);
 
   return (
-    <div className="space-y-5 text-left">
+    <div className="text-left">
       {/* Selector controls */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Season Selector */}
+        <div className="flex items-center gap-2">
           <label className="text-xs font-semibold uppercase tracking-wider text-text-muted font-mono">Season:</label>
-          {/* Season Dropdown */}
           <div className="relative">
             <button
               type="button"
@@ -187,9 +147,11 @@ export default function SeasonSelector({
               </div>
             )}
           </div>
+        </div>
 
-          {/* Episode Dropdown */}
-          <label className="text-xs font-semibold uppercase tracking-wider text-text-muted font-mono ml-1 sm:ml-2">Episode:</label>
+        {/* Episode Selector */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold uppercase tracking-wider text-text-muted font-mono">Episode:</label>
           <div className="relative">
             <button
               type="button"
@@ -199,29 +161,31 @@ export default function SeasonSelector({
               }}
               className="flex items-center gap-2 px-3.5 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium text-xs sm:text-sm border border-white/5 transition-colors focus:outline-none"
             >
-              <span>Episode {currentEpisode}</span>
-              <svg className="w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <span className="truncate max-w-[200px] sm:max-w-[300px]">
+                Episode {currentEpisode}{currentEpData?.name ? `: ${currentEpData.name}` : ''}
+              </span>
+              <svg className="w-3.5 h-3.5 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
 
             {/* Episode Dropdown Options */}
             {showEpisodeDropdown && (
-              <div className="absolute top-full left-0 mt-2 w-64 sm:w-72 max-h-72 overflow-y-auto bg-[#0f0f14] border border-white/10 rounded-xl shadow-2xl z-50 animate-fade-in scrollbar-thin scrollbar-thumb-white/20">
+              <div className="absolute top-full left-0 mt-2 w-72 sm:w-80 max-h-80 overflow-y-auto bg-[#0f0f14] border border-white/10 rounded-xl shadow-2xl z-50 animate-fade-in scrollbar-thin scrollbar-thumb-white/20">
                 {activeEpisodes.map((ep) => (
                   <button
                     type="button"
                     key={ep.episode_number}
-                    onClick={() => {
-                      handleEpisodeClick(ep.episode_number);
-                      setShowEpisodeDropdown(false);
-                    }}
+                    onClick={() => handleEpisodeClick(ep.episode_number)}
                     className={`w-full px-4 py-2.5 text-left hover:bg-white/5 transition-colors flex items-center justify-between text-xs sm:text-sm border-b border-white/5 last:border-0 ${
                       currentEpisode === ep.episode_number ? 'bg-accent-purple/20 text-accent-purple font-semibold' : 'text-white'
                     }`}
                   >
                     <div className="truncate pr-2">
                       <div className="font-medium truncate">EP {ep.episode_number}: {ep.name || `Episode ${ep.episode_number}`}</div>
+                      {ep.overview && (
+                        <div className="text-[10px] text-text-muted truncate mt-0.5">{ep.overview}</div>
+                      )}
                     </div>
                     {currentEpisode === ep.episode_number && (
                       <svg className="w-4 h-4 text-accent-purple fill-current shrink-0" viewBox="0 0 20 20">
@@ -233,145 +197,15 @@ export default function SeasonSelector({
               </div>
             )}
           </div>
-          
-          {loadingEpisodes && (
-            <div className="flex items-center gap-1 text-[11px] text-text-muted font-mono uppercase tracking-wider">
-              <div className="w-3.5 h-3.5 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
-              <span>Updating...</span>
-            </div>
-          )}
         </div>
 
-        {/* Carousel Scroll Buttons for quick desktop navigation */}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => scrollContainer('left')}
-            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/5 active:scale-95 focus:outline-none"
-            title="Scroll left"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollContainer('right')}
-            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/5 active:scale-95 focus:outline-none"
-            title="Scroll right"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Episode Card Deck Carousel */}
-      <div className="relative group/episodes">
-        {/* Left Floating Nav Button */}
-        <button
-          type="button"
-          onClick={() => scrollContainer('left')}
-          className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-accent-purple text-white border border-white/10 flex items-center justify-center backdrop-blur-md shadow-xl transition-all opacity-80 sm:opacity-0 sm:group-hover/episodes:opacity-100 hover:scale-110 focus:outline-none"
-          aria-label="Previous episodes"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-
-        {/* Right Floating Nav Button */}
-        <button
-          type="button"
-          onClick={() => scrollContainer('right')}
-          className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-accent-purple text-white border border-white/10 flex items-center justify-center backdrop-blur-md shadow-xl transition-all opacity-80 sm:opacity-0 sm:group-hover/episodes:opacity-100 hover:scale-110 focus:outline-none"
-          aria-label="Next episodes"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-
-        <div
-          ref={scrollContainerRef}
-          onMouseDown={handleMouseDown}
-          onMouseLeave={handleMouseLeaveOrUp}
-          onMouseUp={handleMouseLeaveOrUp}
-          onMouseMove={handleMouseMove}
-          className={`flex gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth select-none cursor-grab ${
-            isMouseDown ? 'cursor-grabbing select-none' : ''
-          }`}
-        >
-          {activeEpisodes.map((ep) => {
-            const isCurrent = ep.episode_number === currentEpisode;
-            const imgUrl = ep.still_path 
-              ? `https://image.tmdb.org/t/p/w300${ep.still_path}`
-              : null;
-
-            return (
-              <button
-                type="button"
-                key={ep.episode_number}
-                data-episode={ep.episode_number}
-                onClick={() => handleEpisodeClick(ep.episode_number)}
-                className={`flex-shrink-0 w-[240px] sm:w-[280px] bg-[#0c0c11]/45 border text-left rounded-xl overflow-hidden transition-all duration-300 relative focus:outline-none ${
-                  isCurrent 
-                    ? 'border-accent-purple bg-accent-purple/5 ring-1 ring-accent-purple/35 shadow-md shadow-accent-purple/20' 
-                    : 'border-border/60 hover:border-border hover:bg-[#0f0f15]/80'
-                }`}
-              >
-                {/* Backdrop Thumbnail */}
-                <div className="relative aspect-video w-full bg-[#050508] border-b border-border/30 overflow-hidden group">
-                  {imgUrl ? (
-                    <img 
-                      src={imgUrl} 
-                      alt={ep.name} 
-                      className={`w-full h-full object-cover transition-transform duration-500 ${isCurrent ? 'scale-105' : 'group-hover:scale-105'}`}
-                      draggable={false}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-text-muted/20">
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                  )}
-                  
-                  <span className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-black/75 text-[9px] font-bold font-mono tracking-wider text-white backdrop-blur-sm">
-                    EP {ep.episode_number}
-                  </span>
-                  
-                  {isCurrent && (
-                    <div className="absolute inset-0 bg-accent-purple/10 flex items-center justify-center">
-                      <div className="w-8 h-8 rounded-full bg-accent-purple text-white flex items-center justify-center shadow-lg animate-pulse">
-                        <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Card Details */}
-                <div className="p-3 space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-xs font-semibold text-text-primary truncate">{ep.name || `Episode ${ep.episode_number}`}</h4>
-                    {ep.vote_average > 0 && (
-                      <span className="text-[10px] font-bold text-yellow-500 font-mono shrink-0">
-                        ★ {ep.vote_average.toFixed(1)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-text-muted line-clamp-2 leading-relaxed">
-                    {ep.overview || 'No overview details available for this episode.'}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        {loadingEpisodes && (
+          <div className="flex items-center gap-1 text-[11px] text-text-muted font-mono uppercase tracking-wider">
+            <div className="w-3.5 h-3.5 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
+            <span>Updating...</span>
+          </div>
+        )}
       </div>
     </div>
   );
-}
+}
