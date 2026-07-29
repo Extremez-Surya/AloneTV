@@ -47,6 +47,7 @@ const LANG_MAP: Record<string, string> = {
 export default function DetailPageClient({
   type,
   id,
+  tmdbId,
   title,
   posterPath,
   backdropPath,
