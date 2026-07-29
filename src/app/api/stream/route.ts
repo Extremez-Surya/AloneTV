@@ -2,25 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Video streaming sources with proxy support
 const STREAM_SOURCES: Record<string, (id: string, season?: number, episode?: number) => string> = {
-  'vidlink': (id, season, episode) =>
-    season ? `https://vidlink.pro/tv/${id}/${season}/${episode}`
-           : `https://vidlink.pro/movie/${id}`,
+  'vidsrc.net': (id, season, episode) =>
+    season ? `https://vidsrc.net/embed/tv/${id}/${season}/${episode}`
+           : `https://vidsrc.net/embed/movie/${id}`,
 
-  'vidsrc.me': (id, season, episode) =>
-    season ? `https://vidsrc.me/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`
-           : `https://vidsrc.me/embed/movie?tmdb=${id}`,
-
-  'multiembed': (id, season, episode) =>
-    season ? `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`
-           : `https://multiembed.mov/?video_id=${id}&tmdb=1`,
-
-  'smashystream': (id, season, episode) =>
-    season ? `https://embed.smashystream.com/playere.php?tmdb=${id}&season=${season}&episode=${episode}`
-           : `https://embed.smashystream.com/playere.php?tmdb=${id}`,
+  'vidsrc.pro': (id, season, episode) =>
+    season ? `https://vidsrc.pro/embed/tv/${id}/${season}/${episode}`
+           : `https://vidsrc.pro/embed/movie/${id}`,
 
   'vidking': (id, season, episode) =>
     season ? `https://www.vidking.net/embed/tv/${id}/${season}/${episode}`
            : `https://www.vidking.net/embed/movie/${id}`,
+
+  'autoembed': (id, season, episode) =>
+    season ? `https://autoembed.co/tv/tmdb/${id}-${season}-${episode}`
+           : `https://autoembed.co/movie/tmdb/${id}`,
+
+  'vidsrc.icu': (id, season, episode) =>
+    season ? `https://vidsrc.icu/embed/tv/${id}/${season}/${episode}`
+           : `https://vidsrc.icu/embed/movie/${id}`,
 };
 
 export async function GET(request: NextRequest) {

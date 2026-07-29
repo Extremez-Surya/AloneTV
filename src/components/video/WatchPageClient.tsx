@@ -592,19 +592,19 @@ export default function WatchPageClient({
                       <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest font-mono mb-3">Streaming Server Status</h4>
                       <div className="flex gap-2 flex-wrap opacity-65 pointer-events-none select-none">
                         <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
-                          <span>🔒</span> VidLink (1080p AD-FREE)
+                          <span>🔒</span> VidSrc.net (1080p Ultra Fast)
                         </div>
                         <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
-                          <span>🔒</span> VidSrc.me (1080p Ultra Fast)
-                        </div>
-                        <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
-                          <span>🔒</span> MultiEmbed (4K Auto)
-                        </div>
-                        <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
-                          <span>🔒</span> SmashyStream (1080p Fast CDN)
+                          <span>🔒</span> VidSrc Pro (1080p HD)
                         </div>
                         <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
                           <span>🔒</span> VidKing (1080p Multilingual)
+                        </div>
+                        <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
+                          <span>🔒</span> AutoEmbed (4K Fast CDN)
+                        </div>
+                        <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
+                          <span>🔒</span> 2Embed (1080p Auto)
                         </div>
                       </div>
                     </div>
