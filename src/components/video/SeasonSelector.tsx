@@ -37,6 +37,7 @@ export default function SeasonSelector({
   currentEpisode
 }: SeasonSelectorProps) {
   const [showSeasonDropdown, setShowSeasonDropdown] = useState(false);
+  const [showEpisodeDropdown, setShowEpisodeDropdown] = useState(false);
   const [selectedSeasonData, setSelectedSeasonData] = useState<Season | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
@@ -144,10 +145,14 @@ export default function SeasonSelector({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <label className="text-xs font-semibold uppercase tracking-wider text-text-muted font-mono">Season:</label>
+          {/* Season Dropdown */}
           <div className="relative">
             <button
               type="button"
-              onClick={() => setShowSeasonDropdown(!showSeasonDropdown)}
+              onClick={() => {
+                setShowSeasonDropdown(!showSeasonDropdown);
+                setShowEpisodeDropdown(false);
+              }}
               className="flex items-center gap-2 px-3.5 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium text-xs sm:text-sm border border-white/5 transition-colors focus:outline-none"
             >
               <span>{selectedSeasonData?.name || `Season ${currentSeason}`}</span>
@@ -156,7 +161,7 @@ export default function SeasonSelector({
               </svg>
             </button>
 
-            {/* Dropdown Options */}
+            {/* Season Dropdown Options */}
             {showSeasonDropdown && (
               <div className="absolute top-full left-0 mt-2 w-60 max-h-72 overflow-y-auto bg-[#0f0f14] border border-white/10 rounded-xl shadow-2xl z-50 animate-fade-in scrollbar-thin scrollbar-thumb-white/20">
                 {seasons.map((season) => (
@@ -174,6 +179,52 @@ export default function SeasonSelector({
                     </div>
                     {currentSeason === season.season_number && (
                       <svg className="w-4 h-4 text-accent-purple fill-current" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Episode Dropdown */}
+          <label className="text-xs font-semibold uppercase tracking-wider text-text-muted font-mono ml-1 sm:ml-2">Episode:</label>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowEpisodeDropdown(!showEpisodeDropdown);
+                setShowSeasonDropdown(false);
+              }}
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium text-xs sm:text-sm border border-white/5 transition-colors focus:outline-none"
+            >
+              <span>Episode {currentEpisode}</span>
+              <svg className="w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Episode Dropdown Options */}
+            {showEpisodeDropdown && (
+              <div className="absolute top-full left-0 mt-2 w-64 sm:w-72 max-h-72 overflow-y-auto bg-[#0f0f14] border border-white/10 rounded-xl shadow-2xl z-50 animate-fade-in scrollbar-thin scrollbar-thumb-white/20">
+                {activeEpisodes.map((ep) => (
+                  <button
+                    type="button"
+                    key={ep.episode_number}
+                    onClick={() => {
+                      handleEpisodeClick(ep.episode_number);
+                      setShowEpisodeDropdown(false);
+                    }}
+                    className={`w-full px-4 py-2.5 text-left hover:bg-white/5 transition-colors flex items-center justify-between text-xs sm:text-sm border-b border-white/5 last:border-0 ${
+                      currentEpisode === ep.episode_number ? 'bg-accent-purple/20 text-accent-purple font-semibold' : 'text-white'
+                    }`}
+                  >
+                    <div className="truncate pr-2">
+                      <div className="font-medium truncate">EP {ep.episode_number}: {ep.name || `Episode ${ep.episode_number}`}</div>
+                    </div>
+                    {currentEpisode === ep.episode_number && (
+                      <svg className="w-4 h-4 text-accent-purple fill-current shrink-0" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     )}

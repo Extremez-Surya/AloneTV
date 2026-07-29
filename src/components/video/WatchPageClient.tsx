@@ -595,13 +595,13 @@ export default function WatchPageClient({
                           <span>🔒</span> VidLink (1080p AD-FREE)
                         </div>
                         <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
-                          <span>🔒</span> VidSrc Pro (1080p Ultra Fast)
+                          <span>🔒</span> VidSrc.me (1080p Ultra Fast)
                         </div>
                         <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
-                          <span>🔒</span> Embed.su (4K Auto)
+                          <span>🔒</span> MultiEmbed (4K Auto)
                         </div>
                         <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
-                          <span>🔒</span> AutoEmbed (1080p Fast CDN)
+                          <span>🔒</span> SmashyStream (1080p Fast CDN)
                         </div>
                         <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
                           <span>🔒</span> VidKing (1080p Multilingual)

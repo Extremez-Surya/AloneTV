@@ -6,17 +6,17 @@ const STREAM_SOURCES: Record<string, (id: string, season?: number, episode?: num
     season ? `https://vidlink.pro/tv/${id}/${season}/${episode}`
            : `https://vidlink.pro/movie/${id}`,
 
-  'vidsrc': (id, season, episode) =>
-    season ? `https://vidsrc.pro/embed/tv/${id}/${season}/${episode}`
-           : `https://vidsrc.pro/embed/movie/${id}`,
+  'vidsrc.me': (id, season, episode) =>
+    season ? `https://vidsrc.me/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`
+           : `https://vidsrc.me/embed/movie?tmdb=${id}`,
 
-  'embedsu': (id, season, episode) =>
-    season ? `https://embed.su/embed/tv/${id}/${season}/${episode}`
-           : `https://embed.su/embed/movie/${id}`,
+  'multiembed': (id, season, episode) =>
+    season ? `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`
+           : `https://multiembed.mov/?video_id=${id}&tmdb=1`,
 
-  'autoembed': (id, season, episode) =>
-    season ? `https://player.autoembed.cc/embed/tv/${id}/${season}/${episode}`
-           : `https://player.autoembed.cc/embed/movie/${id}`,
+  'smashystream': (id, season, episode) =>
+    season ? `https://embed.smashystream.com/playere.php?tmdb=${id}&season=${season}&episode=${episode}`
+           : `https://embed.smashystream.com/playere.php?tmdb=${id}`,
 
   'vidking': (id, season, episode) =>
     season ? `https://www.vidking.net/embed/tv/${id}/${season}/${episode}`
