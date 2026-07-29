@@ -40,8 +40,9 @@ export default function VideoPlayer({
         <iframe
           key={iframeKey.current}
           src={embedUrl}
-          className="absolute inset-0 w-full h-full"
-          allow="autoplay; fullscreen; encrypted-media"
+          className="absolute inset-0 w-full h-full border-0"
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; gyroscope"
+          referrerPolicy="origin"
           allowFullScreen
         />
       ) : (

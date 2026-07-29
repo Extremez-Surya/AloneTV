@@ -29,38 +29,38 @@ function createSource(
 
 export function getMovieSources(tmdbId: string): VideoSource[] {
   return [
-    createSource('VidSrc.net', `https://vidsrc.net/embed/movie/${tmdbId}`, '1080p',
+    createSource('VidLink', `https://vidlink.pro/movie/${tmdbId}`, '1080p',
       { recommended: true, fast: true, resumable: true, languages: ['English', 'Hindi', 'Spanish', 'Japanese', 'Korean', 'Chinese'] }),
-    createSource('VidSrc Pro', `https://vidsrc.pro/embed/movie/${tmdbId}`, '1080p',
+    createSource('VidSrc.net', `https://vidsrc.net/embed/movie/${tmdbId}`, '1080p',
       { recommended: true, fast: true, languages: ['English', 'Hindi', 'Spanish', 'Japanese'] }),
-    createSource('VidKing', `https://www.vidking.net/embed/movie/${tmdbId}`, '1080p',
+    createSource('VidSrc.to', `https://vidsrc.to/embed/movie/${tmdbId}`, '1080p',
       { recommended: true, fast: true, languages: ['English', 'Hindi', 'Spanish'] }),
-    createSource('AutoEmbed', `https://autoembed.co/movie/tmdb/${tmdbId}`, '1080p',
+    createSource('VidSrc.xyz', `https://vidsrc.xyz/embed/movie/${tmdbId}`, '1080p',
       { recommended: true, fast: true, languages: ['English', 'Hindi'] }),
-    createSource('VidSrc.icu', `https://vidsrc.icu/embed/movie/${tmdbId}`, 'auto',
+    createSource('VidKing', `https://www.vidking.net/embed/movie/${tmdbId}`, 'auto',
+      { fast: true, languages: ['English', 'Hindi', 'Spanish'] }),
+    createSource('VidSrc Pro', `https://vidsrc.pro/embed/movie/${tmdbId}`, 'auto',
       { fast: true, languages: ['English', 'Hindi', 'Spanish'] }),
     createSource('2Embed', `https://www.2embed.cc/embed/${tmdbId}`, 'auto',
-      { fast: true, languages: ['English', 'Hindi', 'Spanish'] }),
-    createSource('VidLink', `https://vidlink.pro/movie/${tmdbId}`, 'auto',
       { languages: ['English', 'Hindi'] }),
   ];
 }
 
 export function getTVSources(tmdbId: string, season: number, episode: number): VideoSource[] {
   return [
-    createSource('VidSrc.net', `https://vidsrc.net/embed/tv/${tmdbId}/${season}/${episode}`, '1080p',
+    createSource('VidLink', `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}`, '1080p',
       { recommended: true, fast: true, resumable: true, languages: ['English', 'Hindi', 'Spanish', 'Japanese', 'Korean', 'Chinese'] }),
-    createSource('VidSrc Pro', `https://vidsrc.pro/embed/tv/${tmdbId}/${season}/${episode}`, '1080p',
+    createSource('VidSrc.net', `https://vidsrc.net/embed/tv/${tmdbId}/${season}/${episode}`, '1080p',
       { recommended: true, fast: true, languages: ['English', 'Hindi', 'Spanish', 'Japanese'] }),
-    createSource('VidKing', `https://www.vidking.net/embed/tv/${tmdbId}/${season}/${episode}`, '1080p',
+    createSource('VidSrc.to', `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`, '1080p',
       { recommended: true, fast: true, languages: ['English', 'Hindi', 'Spanish'] }),
-    createSource('AutoEmbed', `https://autoembed.co/tv/tmdb/${tmdbId}-${season}-${episode}`, '1080p',
+    createSource('VidSrc.xyz', `https://vidsrc.xyz/embed/tv/${tmdbId}/${season}/${episode}`, '1080p',
       { recommended: true, fast: true, languages: ['English', 'Hindi'] }),
-    createSource('VidSrc.icu', `https://vidsrc.icu/embed/tv/${tmdbId}/${season}/${episode}`, 'auto',
+    createSource('VidKing', `https://www.vidking.net/embed/tv/${tmdbId}/${season}/${episode}`, 'auto',
+      { fast: true, languages: ['English', 'Hindi', 'Spanish'] }),
+    createSource('VidSrc Pro', `https://vidsrc.pro/embed/tv/${tmdbId}/${season}/${episode}`, 'auto',
       { fast: true, languages: ['English', 'Hindi', 'Spanish'] }),
     createSource('2Embed', `https://www.2embed.cc/embed/tv/${tmdbId}/${season}/${episode}`, 'auto',
-      { fast: true, languages: ['English', 'Hindi', 'Spanish'] }),
-    createSource('VidLink', `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}`, 'auto',
       { languages: ['English', 'Hindi'] }),
   ];
 }
@@ -115,18 +115,18 @@ export function getFallbackSources(
   if (type === 'anime') {
     const ep = episode ?? 1;
     return [
-      createSource('VidSrc.net', `https://vidsrc.net/embed/tv/${id}/1/${ep}`, '1080p',
+      createSource('VidLink', `https://vidlink.pro/tv/${id}/1/${ep}`, '1080p',
         { recommended: true, fast: true, resumable: true, languages: ['English', 'Japanese', 'Hindi'] }),
-      createSource('VidSrc Pro', `https://vidsrc.pro/embed/tv/${id}/1/${ep}`, '1080p',
+      createSource('VidSrc.net', `https://vidsrc.net/embed/tv/${id}/1/${ep}`, '1080p',
         { recommended: true, fast: true, languages: ['English', 'Japanese', 'Hindi'] }),
-      createSource('VidKing', `https://www.vidking.net/embed/tv/${id}/1/${ep}`, '1080p',
+      createSource('VidSrc.to', `https://vidsrc.to/embed/tv/${id}/1/${ep}`, '1080p',
         { recommended: true, languages: ['English', 'Japanese'] }),
-      createSource('AutoEmbed', `https://autoembed.co/tv/tmdb/${id}-1-${ep}`, '1080p',
+      createSource('VidSrc.xyz', `https://vidsrc.xyz/embed/tv/${id}/1/${ep}`, '1080p',
         { recommended: true, languages: ['English', 'Japanese'] }),
-      createSource('VidSrc.icu', `https://vidsrc.icu/embed/tv/${id}/1/${ep}`, 'auto',
-        { languages: ['English', 'Japanese'] }),
-      createSource('2Embed', `https://www.2embed.cc/embed/tv/${id}/1/${ep}`, 'auto',
+      createSource('VidKing', `https://www.vidking.net/embed/tv/${id}/1/${ep}`, 'auto',
         { languages: ['English', 'Japanese', 'Hindi'] }),
+      createSource('2Embed', `https://www.2embed.cc/embed/tv/${id}/1/${ep}`, 'auto',
+        { languages: ['English', 'Japanese'] }),
     ];
   } else if (type === 'tv' && season && episode) {
     return getTVSources(id, season, episode);
