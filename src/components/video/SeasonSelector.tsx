@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Season {
   season_number: number;
@@ -41,6 +41,11 @@ export default function SeasonSelector({
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeftPos, setScrollLeftPos] = useState(0);
+
   // Sync current season data details
   useEffect(() => {
     const season = seasons.find(s => s.season_number === currentSeason);
@@ -73,6 +78,15 @@ export default function SeasonSelector({
     fetchEpisodes();
   }, [tvId, currentSeason]);
 
+  // Auto-scroll active episode into view
+  useEffect(() => {
+    if (!scrollContainerRef.current) return;
+    const activeEl = scrollContainerRef.current.querySelector(`[data-episode="${currentEpisode}"]`);
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [currentEpisode, currentSeason, episodes]);
+
   const handleSeasonChange = (seasonNum: number) => {
     onSelectSeason(seasonNum);
     setShowSeasonDropdown(false);
@@ -80,6 +94,34 @@ export default function SeasonSelector({
 
   const handleEpisodeClick = (episodeNum: number) => {
     onSelectEpisode(currentSeason, episodeNum);
+  };
+
+  const scrollContainer = (direction: 'left' | 'right') => {
+    if (!scrollContainerRef.current) return;
+    const scrollAmount = scrollContainerRef.current.clientWidth * 0.75;
+    scrollContainerRef.current.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth'
+    });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return;
+    setIsMouseDown(true);
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeftPos(scrollContainerRef.current.scrollLeft);
+  };
+
+  const handleMouseLeaveOrUp = () => {
+    setIsMouseDown(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isMouseDown || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    scrollContainerRef.current.scrollLeft = scrollLeftPos - walk;
   };
 
   // Generate fallback episode list if API is fetching or fails
@@ -99,58 +141,117 @@ export default function SeasonSelector({
   return (
     <div className="space-y-5 text-left">
       {/* Selector controls */}
-      <div className="flex items-center gap-3">
-        <label className="text-xs font-semibold uppercase tracking-wider text-text-muted font-mono">Season:</label>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowSeasonDropdown(!showSeasonDropdown)}
-            className="flex items-center gap-2 px-3.5 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium text-xs sm:text-sm border border-white/5 transition-colors focus:outline-none"
-          >
-            <span>{selectedSeasonData?.name || `Season ${currentSeason}`}</span>
-            <svg className="w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-semibold uppercase tracking-wider text-text-muted font-mono">Season:</label>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowSeasonDropdown(!showSeasonDropdown)}
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium text-xs sm:text-sm border border-white/5 transition-colors focus:outline-none"
+            >
+              <span>{selectedSeasonData?.name || `Season ${currentSeason}`}</span>
+              <svg className="w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
 
-          {/* Dropdown Options */}
-          {showSeasonDropdown && (
-            <div className="absolute top-full left-0 mt-2 w-60 max-h-72 overflow-y-auto bg-[#0f0f14] border border-white/10 rounded-xl shadow-2xl z-50 animate-fade-in scrollbar-hide">
-              {seasons.map((season) => (
-                <button
-                  type="button"
-                  key={season.season_number}
-                  onClick={() => handleSeasonChange(season.season_number)}
-                  className={`w-full px-4 py-2.5 text-left hover:bg-white/5 transition-colors flex items-center justify-between text-xs sm:text-sm ${
-                    currentSeason === season.season_number ? 'bg-accent-purple/20 text-accent-purple font-semibold' : 'text-white'
-                  }`}
-                >
-                  <div>
-                    <div>{season.name || `Season ${season.season_number}`}</div>
-                    <div className="text-[10px] text-text-muted font-mono mt-0.5">{season.episode_count || '?'} episodes</div>
-                  </div>
-                  {currentSeason === season.season_number && (
-                    <svg className="w-4 h-4 text-accent-purple fill-current" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </button>
-              ))}
+            {/* Dropdown Options */}
+            {showSeasonDropdown && (
+              <div className="absolute top-full left-0 mt-2 w-60 max-h-72 overflow-y-auto bg-[#0f0f14] border border-white/10 rounded-xl shadow-2xl z-50 animate-fade-in scrollbar-thin scrollbar-thumb-white/20">
+                {seasons.map((season) => (
+                  <button
+                    type="button"
+                    key={season.season_number}
+                    onClick={() => handleSeasonChange(season.season_number)}
+                    className={`w-full px-4 py-2.5 text-left hover:bg-white/5 transition-colors flex items-center justify-between text-xs sm:text-sm ${
+                      currentSeason === season.season_number ? 'bg-accent-purple/20 text-accent-purple font-semibold' : 'text-white'
+                    }`}
+                  >
+                    <div>
+                      <div>{season.name || `Season ${season.season_number}`}</div>
+                      <div className="text-[10px] text-text-muted font-mono mt-0.5">{season.episode_count || '?'} episodes</div>
+                    </div>
+                    {currentSeason === season.season_number && (
+                      <svg className="w-4 h-4 text-accent-purple fill-current" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {loadingEpisodes && (
+            <div className="flex items-center gap-1 text-[11px] text-text-muted font-mono uppercase tracking-wider">
+              <div className="w-3.5 h-3.5 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
+              <span>Updating...</span>
             </div>
           )}
         </div>
-        
-        {loadingEpisodes && (
-          <div className="flex items-center gap-1 text-[11px] text-text-muted font-mono uppercase tracking-wider">
-            <div className="w-3.5 h-3.5 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
-            <span>Updating...</span>
-          </div>
-        )}
+
+        {/* Carousel Scroll Buttons for quick desktop navigation */}
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => scrollContainer('left')}
+            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/5 active:scale-95 focus:outline-none"
+            title="Scroll left"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollContainer('right')}
+            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/5 active:scale-95 focus:outline-none"
+            title="Scroll right"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Episode Card Deck Carousel */}
       <div className="relative group/episodes">
-        <div className="flex gap-4 overflow-x-auto pb-4 pt-1 scrollbar-hide scroll-smooth">
+        {/* Left Floating Nav Button */}
+        <button
+          type="button"
+          onClick={() => scrollContainer('left')}
+          className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-accent-purple text-white border border-white/10 flex items-center justify-center backdrop-blur-md shadow-xl transition-all opacity-80 sm:opacity-0 sm:group-hover/episodes:opacity-100 hover:scale-110 focus:outline-none"
+          aria-label="Previous episodes"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        {/* Right Floating Nav Button */}
+        <button
+          type="button"
+          onClick={() => scrollContainer('right')}
+          className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-accent-purple text-white border border-white/10 flex items-center justify-center backdrop-blur-md shadow-xl transition-all opacity-80 sm:opacity-0 sm:group-hover/episodes:opacity-100 hover:scale-110 focus:outline-none"
+          aria-label="Next episodes"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        <div
+          ref={scrollContainerRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeaveOrUp}
+          onMouseUp={handleMouseLeaveOrUp}
+          onMouseMove={handleMouseMove}
+          className={`flex gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth select-none cursor-grab ${
+            isMouseDown ? 'cursor-grabbing select-none' : ''
+          }`}
+        >
           {activeEpisodes.map((ep) => {
             const isCurrent = ep.episode_number === currentEpisode;
             const imgUrl = ep.still_path 
@@ -161,6 +262,7 @@ export default function SeasonSelector({
               <button
                 type="button"
                 key={ep.episode_number}
+                data-episode={ep.episode_number}
                 onClick={() => handleEpisodeClick(ep.episode_number)}
                 className={`flex-shrink-0 w-[240px] sm:w-[280px] bg-[#0c0c11]/45 border text-left rounded-xl overflow-hidden transition-all duration-300 relative focus:outline-none ${
                   isCurrent 
@@ -175,6 +277,7 @@ export default function SeasonSelector({
                       src={imgUrl} 
                       alt={ep.name} 
                       className={`w-full h-full object-cover transition-transform duration-500 ${isCurrent ? 'scale-105' : 'group-hover:scale-105'}`}
+                      draggable={false}
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-text-muted/20">
@@ -220,4 +323,4 @@ export default function SeasonSelector({
       </div>
     </div>
   );
-}
+}

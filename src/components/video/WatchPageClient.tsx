@@ -592,10 +592,16 @@ export default function WatchPageClient({
                       <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest font-mono mb-3">Streaming Server Status</h4>
                       <div className="flex gap-2 flex-wrap opacity-65 pointer-events-none select-none">
                         <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
-                          <span>🔒</span> ScreenScape (4K Auto)
+                          <span>🔒</span> VidLink (1080p AD-FREE)
                         </div>
                         <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
-                          <span>🔒</span> VidLink (1080p AD-FREE)
+                          <span>🔒</span> VidSrc Pro (1080p Ultra Fast)
+                        </div>
+                        <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
+                          <span>🔒</span> Embed.su (4K Auto)
+                        </div>
+                        <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
+                          <span>🔒</span> AutoEmbed (1080p Fast CDN)
                         </div>
                         <div className="px-3 py-1.5 bg-bg-secondary rounded-lg border border-border text-xs text-text-muted flex items-center gap-1.5 font-mono">
                           <span>🔒</span> VidKing (1080p Multilingual)

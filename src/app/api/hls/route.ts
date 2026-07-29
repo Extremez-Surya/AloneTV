@@ -8,24 +8,24 @@ interface ProviderDef {
 
 const PROVIDERS: ProviderDef[] = [
   {
-    name: 'ScreenScape',
-    url: (id) => `https://screenscape.me/embed?tmdb=${id}&type=movie&autoplay=0&controls=1`,
-    tvUrl: (id, s, e) => `https://screenscape.me/embed?tmdb=${id}&type=tv&s=${s}&e=${e}&autoplay=0&controls=1`,
+    name: 'VidLink',
+    url: (id) => `https://vidlink.pro/movie/${id}`,
+    tvUrl: (id, s, e) => `https://vidlink.pro/tv/${id}/${s}/${e}`,
   },
   {
-    name: '2Embed',
-    url: (id) => `https://2embed.skin/embed/movie/${id}`,
-    tvUrl: (id, s, e) => `https://2embed.skin/embed/tv/${id}/${s}/${e}`,
+    name: 'VidSrc Pro',
+    url: (id) => `https://vidsrc.pro/embed/movie/${id}`,
+    tvUrl: (id, s, e) => `https://vidsrc.pro/embed/tv/${id}/${s}/${e}`,
   },
   {
-    name: '2Embed Stream',
-    url: (id) => `https://www.2embed.stream/embed/movie/${id}`,
-    tvUrl: (id, s, e) => `https://www.2embed.stream/embed/tv/${id}/${s}/${e}`,
+    name: 'Embed.su',
+    url: (id) => `https://embed.su/embed/movie/${id}`,
+    tvUrl: (id, s, e) => `https://embed.su/embed/tv/${id}/${s}/${e}`,
   },
   {
-    name: 'VidCore',
-    url: (id) => `https://vidcore.org/embed/movie/${id}?autoPlay=false`,
-    tvUrl: (id, s, e) => `https://vidcore.org/embed/tv/${id}/${s}/${e}?autoPlay=false`,
+    name: 'AutoEmbed',
+    url: (id) => `https://player.autoembed.cc/embed/movie/${id}`,
+    tvUrl: (id, s, e) => `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`,
   },
 ]
 

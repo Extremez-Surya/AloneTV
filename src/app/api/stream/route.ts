@@ -2,13 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Video streaming sources with proxy support
 const STREAM_SOURCES: Record<string, (id: string, season?: number, episode?: number) => string> = {
-  'screenscape': (id, season, episode) =>
-    season ? `https://screenscape.me/embed/tv/${id}/${season}/${episode}?autoplay=0&controls=1&theme=dark&quality=auto&subtitle=en`
-           : `https://screenscape.me/embed/movie/${id}?autoplay=0&controls=1&theme=dark&quality=auto&subtitle=en`,
-
   'vidlink': (id, season, episode) =>
     season ? `https://vidlink.pro/tv/${id}/${season}/${episode}`
            : `https://vidlink.pro/movie/${id}`,
+
+  'vidsrc': (id, season, episode) =>
+    season ? `https://vidsrc.pro/embed/tv/${id}/${season}/${episode}`
+           : `https://vidsrc.pro/embed/movie/${id}`,
+
+  'embedsu': (id, season, episode) =>
+    season ? `https://embed.su/embed/tv/${id}/${season}/${episode}`
+           : `https://embed.su/embed/movie/${id}`,
+
+  'autoembed': (id, season, episode) =>
+    season ? `https://player.autoembed.cc/embed/tv/${id}/${season}/${episode}`
+           : `https://player.autoembed.cc/embed/movie/${id}`,
 
   'vidking': (id, season, episode) =>
     season ? `https://www.vidking.net/embed/tv/${id}/${season}/${episode}`
