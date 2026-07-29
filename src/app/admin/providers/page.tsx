@@ -17,14 +17,12 @@ interface Provider {
 }
 
 const DEFAULT_PROVIDERS: Provider[] = [
-  { id: 'screenscape', name: 'ScreenScape', type: 'hls', baseUrl: 'https://screen-scape.vercel.app', enabled: true, reliability: 'high', languages: ['en', 'hi', 'ta', 'te', 'ml', 'bn'], priority: 1, testUrl: 'https://screen-scape.vercel.app/api/hls' },
-  { id: '2embed', name: '2Embed', type: 'iframe', baseUrl: 'https://www.2embed.cc', enabled: true, reliability: 'high', languages: ['en'], priority: 2, testUrl: 'https://www.2embed.cc/embed' },
-  { id: '2embed-stream', name: '2Embed Stream', type: 'hls', baseUrl: 'https://www.2embed.stream', enabled: true, reliability: 'medium', languages: ['en'], priority: 3 },
-  { id: '2embed-online', name: '2Embed Online', type: 'iframe', baseUrl: 'https://www.2embed.online', enabled: true, reliability: 'medium', languages: ['en'], priority: 4 },
-  { id: '2embed-cc', name: '2Embed.cc', type: 'iframe', baseUrl: 'https://www.2embed.cc', enabled: true, reliability: 'medium', languages: ['en'], priority: 5 },
-  { id: 'vidking', name: 'VidKing', type: 'iframe', baseUrl: 'https://vidking.ru', enabled: true, reliability: 'high', languages: ['en'], priority: 6, testUrl: 'https://vidking.ru/embed' },
-  { id: 'vidcore', name: 'VidCore', type: 'hls', baseUrl: 'https://vidcore.site', enabled: true, reliability: 'medium', languages: ['en'], priority: 7 },
-  { id: 'vidlink', name: 'Vidlink', type: 'iframe', baseUrl: 'https://vidlink.pro', enabled: false, reliability: 'low', languages: ['en'], priority: 8 },
+  { id: 'vidlink', name: 'VidLink', type: 'iframe', baseUrl: 'https://vidlink.pro', enabled: true, reliability: 'high', languages: ['en', 'hi', 'es', 'ja', 'ko', 'zh'], priority: 1, testUrl: 'https://vidlink.pro' },
+  { id: 'vidsrc-me', name: 'VidSrc.me', type: 'iframe', baseUrl: 'https://vidsrc.me', enabled: true, reliability: 'high', languages: ['en', 'hi', 'es', 'ja'], priority: 2, testUrl: 'https://vidsrc.me' },
+  { id: 'multiembed', name: 'MultiEmbed', type: 'iframe', baseUrl: 'https://multiembed.mov', enabled: true, reliability: 'high', languages: ['en', 'hi', 'es'], priority: 3, testUrl: 'https://multiembed.mov' },
+  { id: 'smashystream', name: 'SmashyStream', type: 'iframe', baseUrl: 'https://embed.smashystream.com', enabled: true, reliability: 'high', languages: ['en', 'hi'], priority: 4, testUrl: 'https://embed.smashystream.com' },
+  { id: 'vidking', name: 'VidKing', type: 'iframe', baseUrl: 'https://www.vidking.net', enabled: true, reliability: 'high', languages: ['en', 'hi', 'es'], priority: 5, testUrl: 'https://www.vidking.net' },
+  { id: '2embed-cc', name: '2Embed.cc', type: 'iframe', baseUrl: 'https://www.2embed.cc', enabled: true, reliability: 'medium', languages: ['en', 'hi'], priority: 6, testUrl: 'https://www.2embed.cc' },
 ];
 
 const STORAGE_KEY = 'alonetv_provider_config';

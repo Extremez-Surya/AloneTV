@@ -13,19 +13,19 @@ const PROVIDERS: ProviderDef[] = [
     tvUrl: (id, s, e) => `https://vidlink.pro/tv/${id}/${s}/${e}`,
   },
   {
-    name: 'VidSrc Pro',
-    url: (id) => `https://vidsrc.pro/embed/movie/${id}`,
-    tvUrl: (id, s, e) => `https://vidsrc.pro/embed/tv/${id}/${s}/${e}`,
+    name: 'VidSrc.me',
+    url: (id) => `https://vidsrc.me/embed/movie?tmdb=${id}`,
+    tvUrl: (id, s, e) => `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}`,
   },
   {
-    name: 'Embed.su',
-    url: (id) => `https://embed.su/embed/movie/${id}`,
-    tvUrl: (id, s, e) => `https://embed.su/embed/tv/${id}/${s}/${e}`,
+    name: 'MultiEmbed',
+    url: (id) => `https://multiembed.mov/?video_id=${id}&tmdb=1`,
+    tvUrl: (id, s, e) => `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${s}&e=${e}`,
   },
   {
-    name: 'AutoEmbed',
-    url: (id) => `https://player.autoembed.cc/embed/movie/${id}`,
-    tvUrl: (id, s, e) => `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`,
+    name: 'SmashyStream',
+    url: (id) => `https://embed.smashystream.com/playere.php?tmdb=${id}`,
+    tvUrl: (id, s, e) => `https://embed.smashystream.com/playere.php?tmdb=${id}&season=${s}&episode=${e}`,
   },
 ]
 
