@@ -2,8 +2,9 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ContentCard from '@/components/content/ContentCard'
+import { addToWatchlist, removeFromWatchlist, isInWatchlist } from '@/lib/userHistory'
 
 interface Season {
   season_number: number
@@ -60,6 +61,31 @@ export default function DetailPageClient({
   originalLanguage = 'en',
 }: DetailPageClientProps) {
   const [selectedSeason, setSelectedSeason] = useState(seasons?.[0]?.season_number || 1)
+  const [inWatchlist, setInWatchlist] = useState(false)
+
+  useEffect(() => {
+    setInWatchlist(isInWatchlist(id, type))
+  }, [id, type])
+
+  const toggleWatchlist = () => {
+    if (inWatchlist) {
+      removeFromWatchlist(id, type)
+      setInWatchlist(false)
+    } else {
+      addToWatchlist({
+        id,
+        tmdbId: String(tmdbId || id),
+        type: (isAnime ? 'anime' : type) as 'movie' | 'tv' | 'anime',
+        title,
+        posterPath,
+        backdropPath,
+        releaseDate,
+        voteAverage,
+        genres: genres.map(g => g.name),
+      })
+      setInWatchlist(true)
+    }
+  }
 
   const posterUrl = posterPath?.startsWith('http')
     ? posterPath
@@ -120,15 +146,31 @@ export default function DetailPageClient({
                 {type === 'tv' && <span className="text-zinc-600">TV Series</span>}
                 {type === 'anime' && <span className="text-zinc-600">Anime</span>}
               </div>
-              <Link
-                href={`/watch/${type}/${id}`}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm transition-all hover:shadow-lg hover:shadow-purple-500/25"
-              >
-                <svg className="w-5 h-5 fill-current" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                </svg>
-                Start Watching
-              </Link>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href={`/watch/${type}/${id}`}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm transition-all hover:shadow-lg hover:shadow-purple-500/25"
+                >
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                  </svg>
+                  Start Watching
+                </Link>
+
+                <button
+                  onClick={toggleWatchlist}
+                  className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl border text-sm font-semibold transition-all ${
+                    inWatchlist
+                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                      : 'bg-white/10 hover:bg-white/20 border-white/[0.08] text-white'
+                  }`}
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                    <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                  </svg>
+                  {inWatchlist ? '✓ In Watchlist' : '+ Add to Watchlist'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

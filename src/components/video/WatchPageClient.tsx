@@ -10,6 +10,7 @@ import SeasonSelector from '@/components/video/SeasonSelector';
 import { getLocalProfile, syncUserProfile, updatePremiumStatus } from '@/lib/supabase/profile';
 import { createClient } from '@/lib/supabase/client';
 import ContentCard from '@/components/content/ContentCard';
+import { addToContinueWatching } from '@/lib/userHistory';
 
 const VideoPlayer = dynamic(() => import('@/components/video/VideoPlayer'), {
   ssr: false,
@@ -355,34 +356,21 @@ export default function WatchPageClient({
 
   // Save/Update Continue Watching progress history in localStorage
   useEffect(() => {
-    try {
-      const history = JSON.parse(localStorage.getItem('alonetv_continue_watching') || '[]');
-      // Remove previous duplicate entry of the same media item
-      const cleanHistory = history.filter((h: any) => !(h.id === id && h.type === type));
-
-      const newHistoryItem = {
-        id,
-        type,
-        title,
-        posterUrl: posterPath ? (posterPath.startsWith('http') ? posterPath : getTMDBImageUrl(posterPath, 'w342')) : null,
-        backdropUrl: backdropPath ? (backdropPath.startsWith('http') ? backdropPath : getTMDBImageUrl(backdropPath, 'w780')) : null,
-        year: releaseDate ? releaseDate.split('-')[0] : '2025',
-        rating: voteAverage || 0,
-        quality: voteAverage && voteAverage >= 7.6 ? '4K' : 'HD',
-        genres: genres.map((g) => g.name),
-        genreLabel: type === 'anime' ? 'Anime' : type === 'tv' ? 'TV Show' : 'Movie',
-        href: `/detail/${type}/${id}`,
-        season: type === 'tv' ? currentSeason : undefined,
-        episode: type === 'tv' || isAnime ? currentEpisode : undefined,
-        watchedAt: new Date().toISOString(),
-      };
-
-      // Add to front of history list, limit to top 10 items
-      localStorage.setItem('alonetv_continue_watching', JSON.stringify([newHistoryItem, ...cleanHistory].slice(0, 10)));
-    } catch (e) {
-      console.error('Failed to save continue watching progress:', e);
-    }
-  }, [id, type, currentSeason, currentEpisode, title, posterPath, backdropPath, releaseDate, voteAverage, genres, isAnime]);
+    if (!title) return;
+    addToContinueWatching({
+      id,
+      tmdbId: String(tmdbId || id),
+      type: (isAnime ? 'anime' : type) as 'movie' | 'tv' | 'anime',
+      title,
+      posterPath,
+      backdropPath,
+      releaseDate,
+      voteAverage,
+      genres: genres.map((g) => g.name),
+      season: type === 'tv' ? currentSeason : undefined,
+      episode: type === 'tv' || isAnime ? currentEpisode : undefined,
+    });
+  }, [id, type, currentSeason, currentEpisode, title, posterPath, backdropPath, releaseDate, voteAverage, genres, isAnime, tmdbId]);
 
   // Fetch video sources asynchronously
   useEffect(() => {

@@ -9,6 +9,8 @@ import SeasonSelector from '@/components/video/SeasonSelector'
 import DubSelector from '@/components/video/DubSelector'
 import VidstackPlayer, { type AudioTrackInfo } from '@/components/video/VidstackPlayer'
 
+import { addToContinueWatching } from '@/lib/userHistory'
+
 const VideoPlayer = dynamic(() => import('@/components/video/VideoPlayer'), {
   ssr: false,
   loading: () => (
@@ -144,6 +146,21 @@ export default function PlayerPageClient({
   useEffect(() => {
     fetchSources();
   }, [fetchSources]);
+
+  // Record watch history
+  useEffect(() => {
+    if (!title) return;
+    addToContinueWatching({
+      id: videoId || id,
+      tmdbId: String(tmdbId || id),
+      type: type as 'movie' | 'tv' | 'anime',
+      title,
+      posterPath,
+      backdropPath,
+      season: type === 'tv' ? currentSeason : undefined,
+      episode: type === 'tv' || isAnime ? currentEpisode : undefined,
+    });
+  }, [id, videoId, tmdbId, type, title, posterPath, backdropPath, currentSeason, currentEpisode, isAnime]);
 
   useEffect(() => {
     try {

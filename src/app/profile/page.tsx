@@ -36,6 +36,8 @@ function timeAgo(date: Date) {
 }
 
 function getPosterUrl(item: any) {
+  if (item.posterUrl) return item.posterUrl
+  if (item.backdropUrl) return item.backdropUrl
   if (item.poster_path) return `https://image.tmdb.org/t/p/w200${item.poster_path}`
   if (item.backdrop_path) return `https://image.tmdb.org/t/p/w200${item.backdrop_path}`
   return null
@@ -50,6 +52,7 @@ function getMediaType(item: any) {
 }
 
 function getItemHref(item: any) {
+  if (item.href) return item.href
   const t = getMediaType(item)
   const id = item.tmdbId || item.id
   return `/detail/${t}/${id}`
@@ -183,17 +186,29 @@ export default function ProfilePage() {
     window.location.href = '/';
   };
 
-  const removeFromContinueWatching = (id: number) => {
-    const updated = continueWatching.filter(i => i.id !== id && i.tmdbId !== id);
+  const removeFromContinueWatching = (id: number | string) => {
+    const updated = continueWatching.filter(i => String(i.id) !== String(id) && String(i.tmdbId) !== String(id));
     localStorage.setItem('alonetv_continue_watching', JSON.stringify(updated));
     setContinueWatching(updated);
     window.dispatchEvent(new Event('alonetv_continue_watching_changed'));
   };
 
-  const removeFromWatchlist = (id: number) => {
-    const updated = watchlist.filter(i => i.id !== id && i.tmdbId !== id);
+  const removeFromWatchlist = (id: number | string) => {
+    const updated = watchlist.filter(i => String(i.id) !== String(id) && String(i.tmdbId) !== String(id));
     localStorage.setItem('alonetv_watchlist', JSON.stringify(updated));
     setWatchlist(updated);
+    window.dispatchEvent(new Event('alonetv_watchlist_changed'));
+  };
+
+  const clearAllHistory = () => {
+    localStorage.removeItem('alonetv_continue_watching');
+    setContinueWatching([]);
+    window.dispatchEvent(new Event('alonetv_continue_watching_changed'));
+  };
+
+  const clearAllWatchlist = () => {
+    localStorage.removeItem('alonetv_watchlist');
+    setWatchlist([]);
     window.dispatchEvent(new Event('alonetv_watchlist_changed'));
   };
 
@@ -376,7 +391,15 @@ export default function ProfilePage() {
                   <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
                   Continue Watching
                 </h2>
-                <span className="text-[10px] font-mono text-zinc-600">{continueWatching.length} titles</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono text-zinc-600">{continueWatching.length} titles</span>
+                  <button
+                    onClick={clearAllHistory}
+                    className="text-[10px] font-mono text-red-400 hover:text-red-300 px-2 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                  >
+                    Clear History
+                  </button>
+                </div>
               </div>
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide scroll-smooth">
                 {continueWatching.map((item) => {
@@ -612,7 +635,15 @@ export default function ProfilePage() {
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                   Watchlist
                 </h2>
-                <span className="text-[10px] font-mono text-zinc-600">{watchlist.length} titles</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono text-zinc-600">{watchlist.length} titles</span>
+                  <button
+                    onClick={clearAllWatchlist}
+                    className="text-[10px] font-mono text-red-400 hover:text-red-300 px-2 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                  >
+                    Clear Watchlist
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
                 {watchlist.map((item) => {
